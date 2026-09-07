@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { ArrowLeft, Loader2, Mail } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { friendlyAuthError } from "@/lib/authErrors"
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = React.useState("")
@@ -35,7 +36,10 @@ export default function ForgotPasswordPage() {
 
             setSuccess(true)
         } catch (err: any) {
-            setError(err.message || 'An error occurred while requesting the reset link')
+            // Same Supabase email quota as signup — surface it in plain English
+            // rather than as "email rate limit exceeded".
+            console.error('Password reset request failed:', err)
+            setError(friendlyAuthError(err, 'An error occurred while requesting the reset link. Please try again.'))
         } finally {
             setLoading(false)
         }

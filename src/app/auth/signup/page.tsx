@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Input"
 import { ArrowLeft, Car, CreditCard, Loader2, Eye, EyeOff, Building2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { fetchWithRetry } from "@/lib/fetchWithRetry"
+import { friendlyAuthError } from "@/lib/authErrors"
 
 const VALID_SIGNUP_ROLES = ["BUYER", "SELLER", "DEALER", "CONTRACTOR", "FINANCE_PARTNER", "INSURANCE_PARTNER"] as const
 
@@ -144,7 +145,10 @@ function SignupForm() {
                 }).catch(e => console.error('Failed to send verification via Resend, Supabase fallback active', e))
             }
         } catch (err: any) {
-            setError(err.message || 'An error occurred during signup')
+            // Keep the raw error in the console — the user gets plain English,
+            // we keep the code and status needed to debug it.
+            console.error('Signup failed:', err)
+            setError(friendlyAuthError(err, 'An error occurred during signup. Please try again.'))
         } finally {
             setLoading(false)
         }
@@ -345,7 +349,8 @@ function SignupForm() {
                                 })
                                 if (oauthError) throw oauthError
                             } catch (err: any) {
-                                setError(err.message || 'Google sign-up failed')
+                                console.error('Google sign-up failed:', err)
+                                setError(friendlyAuthError(err, 'Google sign-up failed. Please try again.'))
                                 setGoogleLoading(false)
                             }
                         }}
