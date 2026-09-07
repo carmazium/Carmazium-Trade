@@ -324,6 +324,13 @@ export function DealerQuickList() {
         if (!editId) return
         setPlanPublishing(true)
         try {
+            // Same server-side check the wizard does: admins list free, so
+            // publishListing() activates outright and checkout would only reject them.
+            const publish = await publishListing(editId)
+            if (publish.activated || publish.pendingReview) {
+                router.push('/dashboard/dealer/inventory')
+                return
+            }
             const checkout = await createListingCheckoutSession(editId, tier)
             window.location.href = checkout.url
         } catch (err: any) {

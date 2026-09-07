@@ -689,7 +689,9 @@ export function ListingWizard({ isDashboard = false }: { isDashboard?: boolean }
     const trackListingSubmitted = (
         payload: CreateListingRequest,
         listingId: string,
-        outcome: 'pending_review' | 'awaiting_payment',
+        // 'published' is the admin path — no fee and no review queue, so the
+        // listing goes straight to ACTIVE (see ListingsService.publishListing).
+        outcome: 'pending_review' | 'awaiting_payment' | 'published',
     ) => {
         const listing_type = listingTypeLabel(payload.listingType)
         const common = {
@@ -984,6 +986,35 @@ export function ListingWizard({ isDashboard = false }: { isDashboard?: boolean }
                 }
 
                 if (isPaidTier) {
+                    // Ask the server whether this listing actually needs paying for before
+                    // sending anyone to Stripe. Admins list free, so publishListing() takes
+                    // them straight to ACTIVE — without this call an admin hits checkout and
+                    // the payments service rejects them with "Admin listings are free",
+                    // leaving them stuck on this step with no way forward.
+                    const publish = await publishListing(newListingId)
+                    if (publish.activated) {
+                        trackListingSubmitted(payload, newListingId, 'published')
+                        setFormData(INITIAL_FORM)
+                        localStorage.removeItem('carmazium_listing_draft')
+                        setCurrentStep(1)
+                        setSellingMethod(null)
+                        router.push(response.data.slug ? `/buy-cars/${response.data.slug}` : '/dashboard/seller/listings')
+                        return
+                    }
+                    if (publish.pendingReview) {
+                        trackListingSubmitted(payload, newListingId, 'pending_review')
+                        setPendingReview({
+                            title: payload.title,
+                            onContinue: () => {
+                                setFormData(INITIAL_FORM)
+                                localStorage.removeItem('carmazium_listing_draft')
+                                setCurrentStep(1)
+                                setSellingMethod(null)
+                                router.push('/dashboard/seller/listings')
+                            },
+                        })
+                        return
+                    }
                     // Redirect to Stripe — webhook moves the listing to PENDING_REVIEW on success
                     trackListingSubmitted(payload, newListingId, 'awaiting_payment')
                     const checkout = await createListingCheckoutSession(newListingId, payload.badgeTier as string)
