@@ -15,6 +15,8 @@ import { formatPrice, type Listing } from "@/lib/listingApi"
 import { aiSearch, type AiSearchResult } from "@/lib/aiApi"
 import { CarCard } from "@/components/features/CarCard"
 import { getActiveAuctions, type Auction, getCurrentBid, getBidCount } from "@/lib/auctionApi"
+import { canAccessTradeExchange } from "@/lib/tradeAccess"
+import { useAuth } from "@/context/AuthContext"
 import { CountdownTimer } from "@/components/features/CountdownTimer"
 import { type BlogPost } from "@/lib/blogApi"
 
@@ -80,10 +82,20 @@ export default function HomeClient({ initialListings, latestBlogPosts = [] }: Ho
     router.push(`/search?${qs}`)
   }
 
+  // The homepage auction strip is dealer-only. The Trade Exchange is a trade
+  // room now, so a retail buyer landing on the homepage must not be shown trade
+  // stock and its live bids — and the /auctions/active endpoint refuses them
+  // anyway, so fetching it for everyone would just be a guaranteed 403.
+  const { profile } = useAuth()
   const [liveAuctions, setLiveAuctions] = useState<Auction[]>([])
+  const canTrade = canAccessTradeExchange(profile?.role)
   useEffect(() => {
+    if (!canTrade) {
+      setLiveAuctions([])
+      return
+    }
     getActiveAuctions().then(data => setLiveAuctions(data.slice(0, 4))).catch(() => {})
-  }, [])
+  }, [canTrade])
 
   return (
     <div className="w-full max-w-[100vw] overflow-x-hidden flex flex-col">

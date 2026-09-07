@@ -31,6 +31,8 @@ import {
     getBidCount, isAntiSnipeActive, type Auction,
 } from "@/lib/auctionApi"
 import { RequireAuth } from "@/components/auth/RequireAuth"
+import { TRADE_EXCHANGE_ROLES, canAccessTradeExchange } from "@/lib/tradeAccess"
+import { useAuth } from "@/context/AuthContext"
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
 
@@ -608,6 +610,9 @@ export default function AuctionsPage() {
     const [search, setSearch] = React.useState("")
     const [lastRefresh, setLastRefresh] = React.useState(Date.now())
 
+    const { user, profile, loading: authLoading } = useAuth()
+    const canTrade = canAccessTradeExchange(profile?.role)
+
     const { location: userLocation, setPostcode } = useLocation()
     const { trackEvent } = useAnalytics()
     const [detectingLocation, setDetectingLocation] = React.useState(false)
@@ -631,6 +636,13 @@ export default function AuctionsPage() {
         setFilters(prev => ({ ...prev, [key]: val }))
 
     const load = React.useCallback(async () => {
+        // Guests and non-dealers never get the grid, and /auctions/active and
+        // /auctions/scheduled now refuse them outright — fetching anyway would
+        // just paint "Failed to load auctions" behind the gate.
+        if (authLoading || !canTrade) {
+            setLoading(false)
+            return
+        }
         try {
             setLoading(true)
             setError(null)
@@ -643,7 +655,7 @@ export default function AuctionsPage() {
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [authLoading, canTrade])
 
     React.useEffect(() => { load() }, [load])
 
@@ -785,6 +797,25 @@ export default function AuctionsPage() {
         })
     }, [sourceAuctions, search, appliedFilters, userLocation])
 
+    // A signed-in buyer or seller is bounced off the WHOLE route, hero included —
+    // not just the grid below. There is nothing on this page for them: they can't
+    // browse the stock, can't bid, and the pitch underneath is aimed at dealers.
+    //
+    // Guests are deliberately NOT blocked here. They still get the hero and How
+    // It Works — that is the dealer-recruitment pitch, it shows no vehicles, and
+    // it is what makes the Trade Exchange findable by the dealers it is for.
+    //
+    // Gated on `!authLoading` on purpose: this page is server-rendered for SEO
+    // and AuthContext always starts unresolved, so blocking during the loading
+    // window would serve crawlers a "Dealers only" panel instead of the pitch.
+    if (!authLoading && user && !canTrade) {
+        return (
+            <div className="min-h-screen" style={{ background: 'var(--bg-body)' }}>
+                <RequireAuth allowedRoles={TRADE_EXCHANGE_ROLES}>{null}</RequireAuth>
+            </div>
+        )
+    }
+
     return (
         <div className="min-h-screen" style={{ background: 'var(--bg-body)' }}>
 
@@ -879,38 +910,20 @@ export default function AuctionsPage() {
                 <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
             </section>
 
-            {/* Everything from here to the How It Works section is member-only:
+            {/* Everything from here to the How It Works section is dealer-only:
                 the section tabs, the filters and the vehicle grid. The hero
                 above and the How It Works block below stay public on purpose —
-                they are what persuade a guest the account is worth creating,
-                and /auctions/how-it-works redirects to the #how-it-works anchor
-                on this very page, so gating the whole route would have made
-                that marketing link bounce into a login wall. */}
+                they are the dealer-recruitment pitch, and neither shows a
+                single auction vehicle.
+
+                There is deliberately no blurred teaser of real stock any more.
+                It showed live trade prices to whoever loaded the page, which is
+                exactly what a trade-only room must not do. */}
             <RequireAuth
                 title="Sign up to enter the Trade Exchange"
                 signupRole="DEALER"
-                message={
-                    liveAuctions.length > 0
-                        ? `${liveAuctions.length} vehicle${liveAuctions.length === 1 ? '' : 's'} are in the room right now. Join to see them and bid.`
-                        : "Live and upcoming vehicle auctions are open to members. Joining takes a minute."
-                }
-                /* Real cars, blurred — a guest can see there is genuinely
-                   stock in here, which grey placeholder boxes never convey.
-                   Safe to show because /auctions/active is a public endpoint:
-                   nothing is revealed that a guest could not already fetch
-                   directly. The blur sells the room; it is not a privacy
-                   control, and RequireAuth says so where it renders this. */
-                preview={
-                    liveAuctions.length > 0 ? (
-                        <div className="container mx-auto px-4 md:px-6 py-12">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {liveAuctions.slice(0, 6).map((a, i) => (
-                                    <AuctionCard key={a.id} auction={a} index={i} />
-                                ))}
-                            </div>
-                        </div>
-                    ) : null
-                }
+                allowedRoles={TRADE_EXCHANGE_ROLES}
+                message="Live and upcoming vehicle auctions are open to registered dealers. Signing up takes a minute."
             >
 
             {/* ── Trade Exchange section tabs ──────────────────────────────

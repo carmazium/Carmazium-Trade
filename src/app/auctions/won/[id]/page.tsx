@@ -14,6 +14,8 @@ import {
 } from "lucide-react"
 import { ImageLightbox } from "@/components/features/ImageLightbox"
 import { useAuth } from "@/context/AuthContext"
+import { RequireAuth } from "@/components/auth/RequireAuth"
+import { TRADE_EXCHANGE_ROLES, canAccessTradeExchange } from "@/lib/tradeAccess"
 import { getWonAuctionById, type Auction } from "@/lib/auctionApi"
 import { createChatRoom, type ChatRoom } from "@/lib/chatApi"
 import { ChatWindow } from "@/components/chat/ChatWindow"
@@ -57,7 +59,7 @@ function StatusChip({ ok, label }: { ok: boolean | null; label: string }) {
 export default function WonAuctionPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
     const params = React.use(paramsPromise)
     const auctionId = params.id
-    const { user, loading: authLoading } = useAuth()
+    const { user, profile, loading: authLoading } = useAuth()
     const router = useRouter()
     const searchParams = useSearchParams()
 
@@ -111,7 +113,7 @@ export default function WonAuctionPage({ params: paramsPromise }: { params: Prom
     // Fetch auction data — through the winner-gated endpoint (not the public
     // findOne), so the seller's phone/email are actually present to display.
     React.useEffect(() => {
-        if (authLoading || !user) return
+        if (authLoading || !user || !canAccessTradeExchange(profile?.role)) return
         getWonAuctionById(auctionId)
             .then(a => {
                 if (!a || !a.buyerFeePaid) {
@@ -125,9 +127,36 @@ export default function WonAuctionPage({ params: paramsPromise }: { params: Prom
             })
             .catch(() => setLoadError("Could not load auction details."))
             .finally(() => setLoading(false))
-    }, [authLoading, user, auctionId, connectChat, router])
+    }, [authLoading, user, profile?.role, auctionId, connectChat, router])
 
-    if (authLoading || loading) {
+    if (authLoading) {
+        return (
+            <div className="min-h-screen pt-20 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        )
+    }
+
+    // Handover pages live inside the Trade Exchange, so the same dealers-only
+    // rule applies. The winner-gated API would refuse a stranger anyway, but
+    // this stops a non-dealer (or a guest) sitting on a spinner forever — the
+    // fetch effect above never runs for them.
+    if (!user || !canAccessTradeExchange(profile?.role)) {
+        return (
+            <div className="pt-20">
+                <RequireAuth
+                    title="Sign up to enter the Trade Exchange"
+                    signupRole="DEALER"
+                    allowedRoles={TRADE_EXCHANGE_ROLES}
+                    message="Auction handovers are open to registered dealers."
+                >
+                    {null}
+                </RequireAuth>
+            </div>
+        )
+    }
+
+    if (loading) {
         return (
             <div className="min-h-screen pt-20 flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />

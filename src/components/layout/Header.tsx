@@ -8,20 +8,21 @@ import { Menu, X, LogIn, User as UserIcon, LogOut, ChevronDown, Car } from "luci
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/Button"
 import { useAuth } from "@/context/AuthContext"
+import { canAccessTradeExchange } from "@/lib/tradeAccess"
 import { useChat } from "@/context/ChatContext"
 import { getPendingOffersCount } from "@/lib/listingApi"
 import { NotificationBell } from "@/components/layout/NotificationBell"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
 
 
-const navLinks: { name: string; href: string; prefetch?: boolean; badge?: string }[] = [
+const navLinks: { name: string; href: string; prefetch?: boolean; badge?: string; tradeOnly?: boolean }[] = [
     { name: "Home", href: "/" },
     { name: "Buy Cars", href: "/search" },
     { name: "Sell Cars", href: "/sell", prefetch: false },
     // Label only — the route stays /auctions. Renaming the URL would break
     // existing links, SEO, the /auctions/live/[id] children, and the
     // backend's returnPath allowlist (/^\/(buy-cars|auctions)\//).
-    { name: "Trade Exchange", href: "/auctions" },
+    { name: "Trade Exchange", href: "/auctions", tradeOnly: true },
     { name: "Compare", href: "/compare" },
     { name: "Pricing", href: "/pricing" },
     { name: "About", href: "/about" },
@@ -40,6 +41,17 @@ export function Header() {
     React.useEffect(() => {
         setActiveLink(pathname || "")
     }, [pathname])
+
+    // Trade-only entries are hidden from signed-in buyers and sellers — there is
+    // nothing behind them for a non-dealer but a "dealers only" wall. Guests keep
+    // seeing them: /auctions still has a public dealer-recruitment pitch, and
+    // hiding the link would make the Trade Exchange undiscoverable to the dealers
+    // it is meant to attract.
+    const canTrade = canAccessTradeExchange(profile?.role)
+    const visibleNavLinks = React.useMemo(
+        () => navLinks.filter(link => !link.tradeOnly || !user || canTrade),
+        [user, canTrade]
+    )
 
     const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen)
 
@@ -94,7 +106,7 @@ export function Header() {
 
                 {/* Desktop Nav */}
                 <nav className="hidden lg:flex flex-none justify-center gap-8">
-                    {navLinks.map((link) => (
+                    {visibleNavLinks.map((link) => (
                         <Link
                             key={link.name}
                             href={link.href}
@@ -244,7 +256,7 @@ export function Header() {
                                 <ThemeToggle />
                             </div>
                         )}
-                        {navLinks.map((link) => (
+                        {visibleNavLinks.map((link) => (
                             <Link
                                 key={link.name}
                                 href={link.href}

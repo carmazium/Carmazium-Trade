@@ -24,6 +24,9 @@ import { UpdateAuctionDto } from './dto/update-auction.dto';
 import { UpdateAuctionDigestDto } from './dto/update-auction-digest.dto';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { OptionalSessionAuthGuard } from '../auth/guards/optional-session-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { StandardResponse } from '../listings/dto/response.dto';
 
@@ -32,19 +35,38 @@ import { StandardResponse } from '../listings/dto/response.dto';
 export class AuctionsController {
     constructor(private readonly auctionsService: AuctionsService) { }
 
-    // ── Public Routes ─────────────────────────────────────────────────────────
+    // ── Trade Exchange browse routes (dealers and admins only) ────────────────
+    //
+    // These two used to be public, which is what let the frontend show guests
+    // and retail buyers a browsable wall of auction stock. The Trade Exchange is
+    // trade-only now: live trade bids are the dealers' cost base, and a retail
+    // buyer who can read them can read what their next car cost the forecourt.
+    //
+    // Enforced here and not only in the UI — hiding a grid in React leaves the
+    // JSON one curl away, so the browse listing itself has to require the role.
+    // Per-auction detail (@Get(':id')) deliberately stays on the optional guard:
+    // a private seller has to be able to open their own car's auction room, and
+    // that page applies its own seller-or-dealer rule.
 
     @Get('active')
-    @ApiOperation({ summary: 'Get all live (ACTIVE) auctions' })
+    @UseGuards(SessionAuthGuard, RolesGuard)
+    @Roles(UserRole.DEALER, UserRole.ADMIN)
+    @ApiCookieAuth()
+    @ApiOperation({ summary: 'Get all live (ACTIVE) auctions — dealers only' })
     @ApiResponse({ status: 200, description: 'List of active auctions' })
+    @ApiResponse({ status: 403, description: 'Trade Exchange is restricted to dealer accounts' })
     async findAllActive() {
         const auctions = await this.auctionsService.findAllActive();
         return new StandardResponse(auctions);
     }
 
     @Get('scheduled')
-    @ApiOperation({ summary: 'Get all upcoming (SCHEDULED) auctions' })
+    @UseGuards(SessionAuthGuard, RolesGuard)
+    @Roles(UserRole.DEALER, UserRole.ADMIN)
+    @ApiCookieAuth()
+    @ApiOperation({ summary: 'Get all upcoming (SCHEDULED) auctions — dealers only' })
     @ApiResponse({ status: 200, description: 'List of scheduled auctions' })
+    @ApiResponse({ status: 403, description: 'Trade Exchange is restricted to dealer accounts' })
     async findAllScheduled(
         @Query('page') page = '1',
         @Query('limit') limit = '20',

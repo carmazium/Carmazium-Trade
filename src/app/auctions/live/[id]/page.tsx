@@ -30,6 +30,7 @@ import { placeBid, getDamageRecords } from "@/lib/listingApi"
 import { getWebSocketUrl, createChatRoom } from "@/lib/chatApi"
 import { getSessionStatus, applyHpiEmailFee } from "@/lib/paymentApi"
 import { RequireAuth } from "@/components/auth/RequireAuth"
+import { TRADE_EXCHANGE_ROLES } from "@/lib/tradeAccess"
 
 const ThreeDVehicleViewer = dynamic(
     () => import("@/components/listing/ThreeDVehicleViewer").then(m => m.ThreeDVehicleViewer),
@@ -504,8 +505,13 @@ export default function LiveAuctionPage({ params: paramsPromise }: { params: Pro
     return (
         <RequireAuth
             title="Sign up to enter the Trade Exchange"
-                signupRole="DEALER"
-            message="Sign up to view this vehicle and bid in the live auction room."
+            signupRole="DEALER"
+            /* Dealers and admins only — except the seller of this very car, who
+               must be able to watch their own auction and accept a bid from it.
+               Locking a private seller out of their own sale would be a bug, not
+               a trade restriction. */
+            allowedRoles={isSeller ? undefined : TRADE_EXCHANGE_ROLES}
+            message="Sign up as a dealer to view this vehicle and bid in the live auction room."
         >
         <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg-body)' }}>
 
