@@ -131,19 +131,22 @@ function SignupForm() {
             }
 
             // 4. Redirect immediately — don't block on verification email send
+            //
+            // Deliberately no second send here. supabase.auth.signUp() above
+            // already sends the confirmation email, and Supabase's custom SMTP
+            // now delivers it through Resend — so firing /auth/send-verification
+            // as well put two near-simultaneous confirmation emails in the
+            // user's inbox and charged both quotas twice: one Supabase Auth
+            // email slot plus two Resend sends per signup. Resend throttles on
+            // requests per second, not just daily volume, so concurrent signups
+            // could trip it well under the daily cap.
+            //
+            // The branded Resend email is still one click away: the onboarding
+            // page's "Resend email" button calls that endpoint on demand, which
+            // is the right place for it — user-initiated, rate-limited by its
+            // own cooldown, and only sent when the first one actually failed to
+            // arrive.
             router.push('/auth/onboarding')
-
-            // 5. Send verification email via Resend in the background
-            if (authData.user) {
-                fetch(`${API_URL.replace(/\/$/, '')}/auth/send-verification`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: formData.email,
-                        redirectTo: `${baseUrl}/auth/callback?redirect_to=/auth/onboarding`,
-                    }),
-                }).catch(e => console.error('Failed to send verification via Resend, Supabase fallback active', e))
-            }
         } catch (err: any) {
             // Keep the raw error in the console — the user gets plain English,
             // we keep the code and status needed to debug it.
