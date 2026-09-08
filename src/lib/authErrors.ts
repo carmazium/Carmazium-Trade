@@ -44,8 +44,21 @@ export function friendlyAuthError(err: unknown, fallback = "Something went wrong
         return "Please confirm your email address first — check your inbox for the link we sent."
     }
 
-    if (code === "weak_password" || said("password should be", "weak password")) {
-        return "Please choose a stronger password — at least 8 characters, mixing letters and numbers."
+    // AuthWeakPasswordError carries a `reasons` array, and the distinction
+    // matters: a password rejected as 'pwned' appears in a public breach corpus
+    // and may already be long and complex, so telling that user to "add more
+    // characters" is wrong advice that sends them round in circles. Supabase's
+    // own message ("Password is known to be weak and easy to guess") does not
+    // say breach either, which is why this spells it out.
+    const reasons = (err as { reasons?: string[] } | null)?.reasons ?? []
+    if (code === "weak_password" || said("known to be weak", "easy to guess", "password should be", "weak password")) {
+        if (reasons.includes("pwned") || said("known to be weak", "easy to guess")) {
+            return "That password has appeared in a public data breach, so it can't be used here — even if it's long. Please pick a different one you haven't used elsewhere."
+        }
+        if (reasons.includes("length")) {
+            return "That password is too short. Please choose a longer one."
+        }
+        return "Please choose a stronger password — mix upper and lower case, numbers and symbols."
     }
 
     if (code === "email_address_invalid" || said("invalid email", "unable to validate email")) {

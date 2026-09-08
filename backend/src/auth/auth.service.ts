@@ -400,7 +400,7 @@ export class AuthService {
         const firstName = data.user?.user_metadata?.first_name || data.user?.user_metadata?.firstName;
         const name = firstName || email.split('@')[0];
 
-        await this.emailService.sendBrandedEmail({
+        const sent = await this.emailService.sendBrandedEmail({
             to: email,
             subject: `${name}, please verify your CarMazium email`,
             bodyHtml: `
@@ -471,6 +471,23 @@ export class AuthService {
                 </div>
             `,
         });
+
+        // sendBrandedEmail() swallows provider failures and returns null rather
+        // than throwing (see EmailService). Logging success unconditionally is
+        // exactly how an invalid RESEND_API_KEY went unnoticed in production:
+        // the logs read "Verification email sent via Resend" on the very line
+        // after "Failed to send branded email. Error: API key is invalid", so
+        // nothing looked wrong while no user received a confirmation email.
+        //
+        // Throw instead. The signup form calls this fire-and-forget and the user
+        // still reaches onboarding, so failing loudly costs nothing and puts a
+        // real error in the logs and on the endpoint.
+        if (!sent) {
+            this.logger.error(
+                `Verification email FAILED for ${email} — the email provider rejected the send (see the EmailService error logged above).`,
+            );
+            throw new Error('Failed to send verification email');
+        }
 
         this.logger.log(`Verification email sent via Resend to ${email}`);
     }
