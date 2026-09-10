@@ -5,56 +5,65 @@ This guide assumes you have the [flyctl CLI](https://fly.io/docs/hands-on/instal
 ## 1. Initialize Fly App
 
 Navigate to the `backend` directory and launch the app.
+
 ```bash
 cd backend
 fly launch
 ```
-- **App Name**: Choose a unique name (e.g., `carmazium-backend-production`).
-- **Region**: Choose the one closest to your users (e.g., `lhr` for London/Europe, `iad` for US East).
-- **Configuration**: It will detect the `Dockerfile` and `fly.toml`. **Do not** overwrite them if asked, but if it says "An existing fly.toml file was found", say **Yes** to copy its configuration to the new app.
-- **Database**: Say **No** (we are using Supabase).
-- **Redis**: Say **No** (we are not using Redis yet).
 
-## 2. Set Secrets (Environment Variables)
+- **App Name**: Choose a unique name (for example, `carmazium-backend-production`).
+- **Region**: Choose the one closest to your users (for example, `lhr` for London/Europe).
+- **Configuration**: It will detect the existing `Dockerfile` and `fly.toml`. Do not overwrite working project configuration unless you have reviewed the diff.
+- **Database**: Say **No** because CarMazium uses Supabase.
+- **Redis**: Use the existing production Redis configuration if one is configured; otherwise leave it unset only when the application is intentionally using its documented fallback.
 
-Run the following command to set your production secrets. I have populated the values from your local `.env` files where possible.
+## 2. Set Secrets
 
-> [!CAUTION]
-> **Missing Key**: You must replace `YOUR_SUPABASE_SERVICE_KEY` with the actual **`service_role`** key from your Supabase Dashboard (Settings > API). **Do not use the `anon` key.**
+Never commit real database passwords, Supabase service-role keys, Stripe secrets, session secrets, Resend keys, or other credentials to Git.
+
+Set the production values from your password manager / current deployment environment. The examples below are placeholders only:
 
 ```bash
 fly secrets set \
-  DATABASE_URL="postgresql://postgres.qcqnllehtuczgammazwi:Gb6%40Jip%2Fe*xcVEq@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true" \
-  DIRECT_URL="postgresql://postgres.qcqnllehtuczgammazwi:Gb6%40Jip%2Fe*xcVEq@aws-1-ap-south-1.pooler.supabase.com:5432/postgres" \
-  SUPABASE_URL="https://qcqnllehtuczgammazwi.supabase.co" \
-  SUPABASE_SERVICE_KEY="YOUR_SUPABASE_SERVICE_KEY" \
-  SESSION_SECRET="FcCD4/6dIbA7BRcuM2K9Q2FLXSP7y6Xl6oJI7Kp74yEwj5P1qF+QPYwOjs9GJKuM9nmyDf+gaRGQmt7qtik/GQ==" \
+  DATABASE_URL="postgresql://USER:PASSWORD@HOST:6543/postgres?pgbouncer=true" \
+  DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/postgres" \
+  SUPABASE_URL="https://YOUR_PROJECT_REF.supabase.co" \
+  SUPABASE_SERVICE_KEY="YOUR_SUPABASE_SERVICE_ROLE_KEY" \
+  SESSION_SECRET="GENERATE_A_LONG_RANDOM_SECRET" \
   NODE_ENV="production"
 ```
 
+Generate a fresh session secret rather than reusing a value from documentation or source control, for example:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('base64'))"
+```
+
+If a real secret was ever committed, remove it from the current source and rotate the credential in the service that issued it. Removing a secret from the latest file does not remove it from Git history.
+
 ## 3. Deploy
 
-Once secrets are set, deploy the application:
+Once the required secrets are set:
 
 ```bash
 fly deploy
 ```
 
-The build process will:
-1.  Upload the context to Fly's remote builder.
-2.  Install dependencies (including `nest` CLI).
-3.  Build the NestJS app.
-4.  Run `prisma generate` and `prisma db push` (to sync the database schema).
-5.  Start the server on port 8080.
+The backend build should install dependencies, generate the Prisma client, compile the NestJS application, and start using the configuration in `fly.toml` / the backend Dockerfile. Database schema changes should be applied through reviewed migrations rather than relying on an undocumented production `db push`.
 
 ## 4. Verification
 
-Check the status and logs:
+Check application status and logs:
 
 ```bash
 fly status
 fly logs
 ```
 
-If the deployment succeeds, you will see the app running. Update your Frontend's `.env.local` or environment variables to point to the new backend URL:
-`NEXT_PUBLIC_API_URL=https://your-app-name.fly.dev`
+After a successful backend deployment, confirm the frontend environment points to the intended API host:
+
+```text
+NEXT_PUBLIC_API_URL=https://your-app-name.fly.dev
+```
+
+Then smoke-test authentication, listing submission, auction bidding, checkout, HPI, TradeXchange, and admin-only endpoints before promoting a frontend release.
