@@ -7,7 +7,7 @@ export class CreateAuctionDto {
     @IsUUID()
     listingId: string;
 
-    @ApiProperty({ description: 'Auction start time (ISO string). End time is always startTime + 5 hours.', example: '2026-06-01T10:00:00.000Z' })
+    @ApiProperty({ description: 'Auction start time (ISO string). End time is always startTime + 24 hours.', example: '2026-06-01T10:00:00.000Z' })
     @IsDateString()
     startTime: string;
 

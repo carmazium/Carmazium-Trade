@@ -1,15 +1,15 @@
-﻿"use client"
+"use client"
 
 import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { Gavel, Loader2, ArrowLeft, Eye, Car, UserCheck, X, AlertTriangle, Pencil } from "lucide-react"
+import { Gavel, Loader2, ArrowLeft, Eye, Car, UserCheck, X, AlertTriangle, Pencil, RefreshCcw } from "lucide-react"
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar"
 import { UserDetailModal } from "@/components/dashboard/UserDetailModal"
 import { ListingEditModal } from "@/components/dashboard/ListingEditModal"
 import { useAuth } from "@/context/AuthContext"
-import { getAdminAuctions, getAllDealers, assignAuctionWinner } from "@/lib/adminApi"
+import { getAdminAuctions, getAllDealers, assignAuctionWinner, refundAuctionBuyerFee } from "@/lib/adminApi"
 import { formatPrice } from "@/lib/listingApi"
 
 const STATUS_STYLES: Record<string, string> = {
@@ -38,6 +38,7 @@ export default function AdminAuctionsPage() {
     const [assignError, setAssignError] = React.useState<string | null>(null)
     const [selectedUserId, setSelectedUserId] = React.useState<string | null>(null)
     const [editListingId, setEditListingId] = React.useState<string | null>(null)
+    const [refundingAuctionId, setRefundingAuctionId] = React.useState<string | null>(null)
 
     React.useEffect(() => {
         if (!authLoading) {
@@ -91,6 +92,25 @@ export default function AdminAuctionsPage() {
             setAssignError(err.message || 'Failed to assign winner')
         } finally {
             setAssigning(false)
+        }
+    }
+
+    async function handleRefundBuyerFee(auction: any) {
+        const reason = window.prompt(
+            'Reason for cancelling this sale and refunding the buyer fee?\n\nUse this only for a verified failed sale, such as a material undisclosed fault found during inspection.',
+            'Material undisclosed fault confirmed during inspection',
+        )
+        if (!reason?.trim()) return
+        if (!window.confirm('Refund the full £125 buyer fee and return the vehicle to Draft for correction/relisting?')) return
+
+        setRefundingAuctionId(auction.id)
+        try {
+            await refundAuctionBuyerFee(auction.id, reason.trim())
+            loadAuctions()
+        } catch (err: any) {
+            alert(err.message || 'Failed to refund buyer fee')
+        } finally {
+            setRefundingAuctionId(null)
         }
     }
 
@@ -211,6 +231,17 @@ export default function AdminAuctionsPage() {
                                                             title="Assign Winner"
                                                         >
                                                             <UserCheck size={16} />
+                                                        </button>
+                                                    )}
+                                                    {a.status === 'ENDED' && a.buyerFeePaid && !a.sellerBonusReleased && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRefundBuyerFee(a)}
+                                                            disabled={refundingAuctionId === a.id}
+                                                            className="p-2.5 hover:bg-red-500/10 rounded-lg transition-colors text-red-400 hover:text-red-300 inline-flex disabled:opacity-40 cursor-pointer"
+                                                            title="Cancel failed sale & refund full £125 buyer fee"
+                                                        >
+                                                            {refundingAuctionId === a.id ? <Loader2 size={16} className="animate-spin" /> : <RefreshCcw size={16} />}
                                                         </button>
                                                     )}
                                                     <button

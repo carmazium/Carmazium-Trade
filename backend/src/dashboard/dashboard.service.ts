@@ -274,8 +274,10 @@ export class DashboardService {
             earnings: earnings.map(s => ({
                 id: s.id,
                 soldPrice: Number(s.soldPrice),
-                platformFee: Number(s.soldPrice) * 0.025,
-                net: Number(s.soldPrice) * 0.975,
+                // Vehicle purchase funds are paid directly buyer-to-seller.
+                // CarMazium does not deduct a percentage commission from retail proceeds.
+                platformFee: 0,
+                net: Number(s.soldPrice),
                 listing: { title: s.listing?.title ?? 'Vehicle' },
                 createdAt: s.createdAt,
             })),

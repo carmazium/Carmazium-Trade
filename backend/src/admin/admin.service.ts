@@ -243,6 +243,32 @@ export class AdminService {
      * submissions).
      */
     async getPendingListingReviews() {
+        // Every listing must have a vehicle-history report before it can go live.
+        // Seed missing rows here so older drafts and free auction listings enter
+        // the same admin HPI workflow without forcing sellers through a separate
+        // paid add-on checkout.
+        const missingHpi = await this.prisma.listing.findMany({
+            where: {
+                status: { in: ['PENDING_REVIEW', 'REJECTED'] },
+                deletedAt: null,
+                hpiReport: { is: null },
+            },
+            select: { id: true, vrm: true },
+        });
+        const seedable = missingHpi.filter((listing) => !!listing.vrm);
+        if (seedable.length > 0) {
+            await this.prisma.hpiReport.createMany({
+                data: seedable.map((listing) => ({
+                    listingId: listing.id,
+                    vrm: listing.vrm!,
+                    status: 'PENDING' as const,
+                    source: 'ADMIN' as const,
+                    isClear: false,
+                })),
+                skipDuplicates: true,
+            });
+        }
+
         return this.prisma.listing.findMany({
             where: { status: { in: ['PENDING_REVIEW', 'REJECTED'] }, deletedAt: null },
             orderBy: { createdAt: 'asc' },
@@ -252,10 +278,9 @@ export class AdminService {
                 // BIN/start time) on this related row, not on Listing itself — the
                 // pending-review UI needs it to actually review an auction.
                 auction: true,
-                // Drives the "HPI outstanding" indicator. Informational only —
-                // a pending report no longer blocks approval, it just tells the
-                // reviewer this listing will go live owing its seller a report.
-                // pdfUploadedAt distinguishes a report completed by uploading the
+                // Drives the mandatory HPI review gate. A PENDING report blocks
+                // approval until staff complete or upload it. pdfUploadedAt
+                // distinguishes a report completed by uploading the
                 // supplied PDF from one keyed into the form — the two are edited
                 // through different modals, so the UI has to know which it is.
                 hpiReport: { select: { status: true, isClear: true, preparedAt: true, pdfUploadedAt: true } },
@@ -396,21 +421,23 @@ export class AdminService {
     }
 
     /**
-     * A pending HPI report deliberately does NOT block approval.
-     *
-     * It used to: a listing whose seller had paid for a report was held back
-     * until staff produced it, which stalled sellers behind our own turnaround.
-     * Now the listing goes live showing "report being prepared" and the report
-     * is attached later from the admin HPI queue. Nothing here needs to know
-     * about it — the report has its own lifecycle.
+     * Listings cannot go live without a completed vehicle-history/HPI report.
+     * Auction listing remains free to the seller; the report is part of the
+     * platform review workflow rather than an optional seller checkout.
      */
     async approveListing(id: string) {
-        const listing = await this.prisma.listing.findUnique({ where: { id } });
+        const listing = await this.prisma.listing.findUnique({
+            where: { id },
+            include: { hpiReport: { select: { status: true } } },
+        });
         if (!listing) {
             throw new NotFoundException('Listing not found');
         }
         if (listing.status !== 'PENDING_REVIEW') {
             throw new BadRequestException('Only listings awaiting review can be approved');
+        }
+        if (listing.hpiReport?.status !== 'COMPLETED') {
+            throw new BadRequestException('Complete the mandatory HPI vehicle-history report before approving this listing');
         }
 
         const updated = await this.prisma.listing.update({
@@ -596,6 +623,118 @@ export class AdminService {
      */
     async assignAuctionWinner(auctionId: string, dealerId: string) {
         await this.auctionsService.adminAssignWinner(auctionId, dealerId);
+    }
+
+    /**
+     * Cancel an auction sale after admin has verified that the transaction
+     * cannot complete (for example a material undisclosed fault found during
+     * inspection). Refunds the full £125 buyer fee, unwinds the recorded sale,
+     * and returns the vehicle to draft so the seller can correct/relist it.
+     */
+    async refundAuctionBuyerFee(auctionId: string, reason?: string) {
+        const auction = await this.prisma.auction.findUnique({
+            where: { id: auctionId },
+            include: { listing: true },
+        });
+        if (!auction || auction.deletedAt) throw new NotFoundException('Auction not found');
+        if (auction.status !== 'ENDED' || !auction.winnerId) {
+            throw new BadRequestException('Only a completed auction with a winner can be refunded');
+        }
+        if (auction.sellerBonusReleased) {
+            throw new BadRequestException('This handover has already been approved; review it manually before refunding');
+        }
+        if (!auction.buyerFeePaid || !auction.buyerFeeTransactionId) {
+            throw new BadRequestException('No paid auction buyer fee was found for this sale');
+        }
+
+        // Stripe first: if the external refund fails, leave marketplace state
+        // untouched so staff can retry without creating an inconsistent sale.
+        try {
+            await this.paymentsService.issueRefundForAuction(auctionId);
+        } catch (err: any) {
+            const message = err?.message || 'Unknown Stripe refund error';
+            await this.prisma.auction.update({
+                where: { id: auctionId },
+                data: { stripeRefundError: message },
+            });
+            throw new BadRequestException(`Buyer-fee refund failed: ${message}`);
+        }
+
+        const linkedListingId = auction.listing.linkedListingId;
+        const sellerId = auction.listing.sellerId;
+        const winnerId = auction.winnerId;
+
+        const operations: any[] = [
+            this.prisma.auction.update({
+                where: { id: auctionId },
+                data: {
+                    status: 'CANCELLED',
+                    winnerId: null,
+                    winningBidAmount: null,
+                    wonAt: null,
+                    buyerFeePaid: false,
+                    handoverProofUrl: null,
+                    handoverSubmittedAt: null,
+                    stripeRefundError: null,
+                },
+            }),
+            this.prisma.listing.update({
+                where: { id: auction.listingId },
+                data: { status: 'DRAFT', type: 'AUCTION', linkedListingId: null },
+            }),
+            this.prisma.sale.deleteMany({
+                where: { listingId: auction.listingId, buyerId: winnerId },
+            }),
+        ];
+
+        if (linkedListingId) {
+            operations.push(this.prisma.listing.update({
+                where: { id: linkedListingId },
+                data: { status: 'DRAFT', linkedListingId: null },
+            }));
+        }
+        if (sellerId) {
+            operations.push(this.prisma.sellerProfile.updateMany({
+                where: { userId: sellerId, totalSales: { gt: 0 } },
+                data: { totalSales: { decrement: 1 } },
+            }));
+        }
+
+        await this.prisma.$transaction(operations);
+
+        const cleanReason = reason?.trim();
+        const buyerMessage = cleanReason
+            ? `The sale of "${auction.listing.title}" was cancelled (${cleanReason}). Your £125 CarMazium buyer fee has been refunded in full.`
+            : `The sale of "${auction.listing.title}" was cancelled. Your £125 CarMazium buyer fee has been refunded in full.`;
+        const sellerMessage = cleanReason
+            ? `The auction sale of "${auction.listing.title}" was cancelled (${cleanReason}). The vehicle is back in Draft so you can update it before relisting.`
+            : `The auction sale of "${auction.listing.title}" was cancelled. The vehicle is back in Draft so you can update it before relisting.`;
+
+        const buyerNotification = await this.notificationsService.create({
+            userId: winnerId,
+            type: 'AUCTION_REFUNDED',
+            title: 'Auction buyer fee refunded',
+            message: buyerMessage,
+            entityType: 'AUCTION',
+            entityId: auctionId,
+            link: '/dashboard/dealer/auctions/won',
+        }).catch(() => null);
+        if (buyerNotification) this.notificationsGateway.sendNotification(winnerId, buyerNotification);
+
+        if (sellerId) {
+            const sellerNotification = await this.notificationsService.create({
+                userId: sellerId,
+                type: 'AUCTION_SALE_CANCELLED',
+                title: 'Auction sale cancelled',
+                message: sellerMessage,
+                entityType: 'AUCTION',
+                entityId: auctionId,
+                link: '/dashboard/seller/listings',
+            }).catch(() => null);
+            if (sellerNotification) this.notificationsGateway.sendNotification(sellerId, sellerNotification);
+        }
+
+        return { refunded: true, amount: 125, auctionId, listingId: auction.listingId };
     }
 
     async getPendingHandovers() {
@@ -899,36 +1038,9 @@ export class AdminService {
             return auction;
         }
 
-        // Issue £100 partial Stripe refund to buyer if they paid
-        if (auction.buyerFeePaid && auction.buyerFeeTransactionId) {
-            try {
-                await this.paymentsService.issueRefundForAuction(auctionId);
-            } catch (err: any) {
-                const errMsg = err?.message || 'Unknown Stripe error';
-                console.error(`[Admin] Stripe refund failed for auction ${auctionId}:`, errMsg);
-                // Persist error so admins can see it in the handovers view and refund manually —
-                // previously this failure was only console-logged, so a failed refund left the
-                // buyer's £125 fee unrecovered with no one alerted.
-                await this.prisma.auction.update({
-                    where: { id: auctionId },
-                    data: { stripeRefundError: errMsg },
-                });
-                const admins = await this.prisma.user.findMany({
-                    where: { role: 'ADMIN', deletedAt: null },
-                    select: { id: true },
-                });
-                for (const admin of admins) {
-                    this.notificationsGateway.sendNotification(admin.id, {
-                        type: 'REFUND_FAILED',
-                        title: '⚠️ Refund failed — manual action needed',
-                        message: `Auto-refund of £100 to buyer for "${auction.listing.title}" failed: ${errMsg}. Please refund manually via Stripe.`,
-                        entityType: 'AUCTION',
-                        entityId: auctionId,
-                        link: '/dashboard/admin/handovers',
-                    });
-                }
-            }
-        }
+        // Rejecting the seller's evidence is NOT a failed-sale event. The seller
+        // can resubmit a clearer proof, so the buyer's £125 fee remains untouched.
+        // Failed-sale / undisclosed-fault refunds use refundAuctionBuyerFee().
 
         // Purge the denied proof from Supabase storage — the URL is a public path
         // like `${supabaseUrl}/storage/v1/object/public/listings/handover/{id}/xxx.jpg`;
@@ -1012,24 +1124,16 @@ export class AdminService {
         return { data, total };
     }
 
-    // £25 of the £125 auction buyer fee is CarMazium's own cut — the other
-    // £100 is a seller bonus paid out via Stripe Connect transfer
-    // (issueSellerPayout). Mirrors AUCTION_PLATFORM_FEE in payments.service.ts.
-    private readonly AUCTION_PLATFORM_FEE_CUT = 25;
+    private readonly AUCTION_BUYER_FEE = 125;
 
     /**
-     * "Revenue" here means money CarMazium actually retains, not gross Stripe
-     * throughput. LISTING_FEE, HPI_REPORT (seller's report request) and
-     * HPI_REPORT_EMAIL (buyer's paid emailed copy) are all kept in full.
-     * COMMISSION (the £125 auction buyer fee) is counted per-transaction at
-     * the fixed £25 platform cut, not by summing `amount` — the stored
-     * amount is the full £125, £100 of which is seller pass-through. DEPOSIT
-     * and FULL_PAYMENT are buyer funds for the vehicle itself — refundable or
-     * a pass-through to the seller — and are excluded entirely; there's
-     * currently no seller-payout mechanism for FULL_PAYMENT by design (retail
-     * sales settle outside the fee flow), so none of that money is ever
-     * CarMazium's to count. BOOST payments don't create Transaction rows at
-     * all yet (see FeaturedBoostService) and so aren't reflected here either.
+     * Platform revenue counts fees paid to CarMazium. The £125 auction buyer
+     * fee is CarMazium's platform fee in full; the separate £100 seller
+     * incentive is a promotional expense, not a pass-through component of it.
+     * Vehicle purchase funds (DEPOSIT/FULL_PAYMENT) are excluded because the
+     * vehicle price is settled buyer-to-seller outside the platform fee model.
+     * BOOST payments do not currently create Transaction rows and are therefore
+     * not included here.
      */
     private async computeRealRevenue(dateRange?: { gte: Date; lte: Date }): Promise<number> {
         const createdAt = dateRange ? { createdAt: dateRange } : {};
@@ -1042,7 +1146,7 @@ export class AdminService {
                 where: { status: 'COMPLETED', deletedAt: null, type: 'COMMISSION', ...createdAt },
             }),
         ]);
-        return Number(feeAgg._sum?.amount ?? 0) + commissionCount * this.AUCTION_PLATFORM_FEE_CUT;
+        return Number(feeAgg._sum?.amount ?? 0) + commissionCount * this.AUCTION_BUYER_FEE;
     }
 
     async getPlatformStats() {

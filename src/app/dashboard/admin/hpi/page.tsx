@@ -27,12 +27,10 @@ function daysSince(iso: string): number {
 }
 
 /**
- * The queue of HPI reports someone has paid for and not yet received.
+ * Mandatory vehicle-history/HPI reviews awaiting completion.
  *
- * This page exists because a pending report no longer holds a listing back:
- * the vehicle publishes, runs, and can sell while its report is outstanding, so
- * the pending-review queue is no longer where these surface. This is the only
- * place they do.
+ * A PENDING report blocks listing approval. Buyer-paid emailed copies share the
+ * same completed report and are shown as waiting recipients where applicable.
  */
 export default function AdminHpiQueuePage() {
     const { user, profile, loading: authLoading } = useAuth()
@@ -104,9 +102,8 @@ export default function AdminHpiQueuePage() {
                             HPI Reports
                         </h1>
                         <p className="text-sm text-[var(--text-muted)] mt-1.5 leading-relaxed max-w-2xl">
-                            Vehicle history reports that have been paid for but not yet produced. Listings stay live
-                            while they wait, so nothing here is blocking a seller — but every row is someone who has
-                            paid and is still owed a report.
+                            Mandatory vehicle-history/HPI reviews that must be completed before a listing can go live.
+                            Buyer-paid emailed copies, when any are waiting, use the same completed report.
                         </p>
                     </header>
 
@@ -148,7 +145,7 @@ export default function AdminHpiQueuePage() {
                                 <ClipboardList size={32} className="mx-auto mb-3 text-[var(--text-muted)] opacity-50" />
                                 <p className="font-bold text-[var(--text-primary)]">Nothing outstanding</p>
                                 <p className="text-xs text-[var(--text-muted)] mt-1">
-                                    Every paid vehicle history report has been produced.
+                                    Every mandatory vehicle-history review is complete.
                                 </p>
                             </div>
                         ) : (

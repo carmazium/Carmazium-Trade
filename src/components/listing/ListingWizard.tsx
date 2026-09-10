@@ -220,64 +220,35 @@ function InfoTooltip({ text }: { text: string }) {
     )
 }
 
-// ─── HPI Bait Section ─────────────────────────────────────────────────────────
+// ─── Mandatory vehicle-history review ────────────────────────────────────────
 
-function HpiBaitSection({ isUnlocked, onUnlock }: { isUnlocked: boolean, onUnlock: () => void }) {
-    if (isUnlocked) {
-        // Payment succeeded, but the report itself is prepared by our team
-        // after review — nothing has actually been checked yet at this point,
-        // so this must not claim a clean result before one exists.
-        return (
-            <div className="mt-8 relative overflow-hidden rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 flex flex-col items-center text-center">
-                 <div className="flex items-center gap-3">
-                     <Clock className="text-blue-400" size={20} />
-                     <h3 className="text-base font-bold text-blue-300">HPI Report Requested</h3>
-                 </div>
-                 <p className="text-xs text-[var(--text-muted)] mt-1">Our team will prepare your vehicle history report during review.</p>
-            </div>
-        )
-    }
-
+function HpiBaitSection({ isUnlocked: _isUnlocked, onUnlock: _onUnlock }: { isUnlocked: boolean, onUnlock: () => void }) {
     return (
         <div className="mt-8">
-            <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-input)] overflow-hidden flex flex-col md:flex-row shadow-2xl">
-                {/* Left side: Image with blur */}
-                <div className="relative w-full md:w-2/5 aspect-[4/3] md:aspect-auto cursor-pointer group" onClick={onUnlock}>
+            <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 overflow-hidden flex flex-col md:flex-row shadow-2xl">
+                <div className="relative w-full md:w-2/5 aspect-[4/3] md:aspect-auto">
                     <Image
                         src="/assets/images/Hpi Template.jpg"
-                        alt="HPI Report Preview"
+                        alt="Vehicle history report preview"
                         fill
-                        className="object-cover blur-[6px] opacity-70 group-hover:blur-sm group-hover:opacity-90 transition-all duration-500 group-hover:scale-105"
+                        className="object-cover opacity-85"
                     />
-                    <div className="absolute inset-0 bg-slate-900/30 group-hover:bg-slate-900/10 transition-colors" />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-2">
-                        <div className="bg-white/10 backdrop-blur-md p-4 rounded-full text-white shadow-neon border border-white/20">
-                            <Lock size={28} />
+                    <div className="absolute inset-0 bg-slate-950/20" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="bg-slate-950/70 backdrop-blur-md px-4 py-2 rounded-full text-white border border-white/20 flex items-center gap-2">
+                            <Shield size={18} className="text-blue-300" />
+                            <span className="text-xs font-black uppercase tracking-wider">Required Check</span>
                         </div>
-                        <span className="text-white font-bold tracking-wider text-sm drop-shadow-md">CLICK TO UNLOCK</span>
                     </div>
                 </div>
-
-                {/* Right side: Content */}
                 <div className="p-6 md:p-8 flex-1 flex flex-col justify-center text-center md:text-left">
                     <div className="flex items-center justify-center md:justify-start gap-3 mb-3">
-                        <Shield className="text-blue-400 shrink-0" size={32} />
-                        <h3 className="text-[var(--text-primary)] font-bold text-xl">Official HPI Vehicle Check</h3>
+                        <BadgeCheck className="text-blue-400 shrink-0" size={30} />
+                        <h3 className="text-[var(--text-primary)] font-bold text-xl">Vehicle History Check Included</h3>
                     </div>
-                    
-                    <p className="text-[var(--text-secondary)] mb-6 leading-relaxed">
-                        We've found an official HPI record for this vehicle. Unlocking the full report gives you a <strong className="text-[var(--text-primary)]">Premium Verification Badge</strong> on your listing.
+                    <p className="text-[var(--text-secondary)] leading-relaxed">
+                        Every CarMazium listing is reviewed with a vehicle-history/HPI check before it goes live. There is no separate HPI add-on required from you during listing; our admin review must complete the check before approval.
                     </p>
-                    
-                    <div className="flex flex-col items-center md:items-start gap-3 mt-auto">
-                        <Button type="button" onClick={onUnlock} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold px-8 py-6 text-base shadow-neon shrink-0 w-full sm:w-auto border-0">
-                            Unlock Full HPI Report
-                        </Button>
-                        <p className="text-xs text-[var(--text-muted)] italic flex items-center gap-1.5">
-                            <BadgeCheck size={14} className="text-emerald-400" />
-                            *Proven to help cars sell up to 2x faster!
-                        </p>
-                    </div>
                 </div>
             </div>
         </div>
@@ -689,8 +660,8 @@ export function ListingWizard({ isDashboard = false }: { isDashboard?: boolean }
     const trackListingSubmitted = (
         payload: CreateListingRequest,
         listingId: string,
-        // 'published' is the admin path — no fee and no review queue, so the
-        // listing goes straight to ACTIVE (see ListingsService.publishListing).
+        // 'published' remains for analytics compatibility with older events;
+        // current submissions use the mandatory review path before going ACTIVE.
         outcome: 'pending_review' | 'awaiting_payment' | 'published',
     ) => {
         const listing_type = listingTypeLabel(payload.listingType)
@@ -2685,12 +2656,12 @@ export function ListingWizard({ isDashboard = false }: { isDashboard?: boolean }
                                             <ul className="space-y-1.5 text-xs text-[var(--text-muted)]">
                                                 <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-emerald-400" /> Open bidding</li>
                                                 <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-emerald-400" /> 24-hour auction</li>
-                                                <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-emerald-400" /> Anyone can bid</li>
+                                                <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-emerald-400" /> Verified dealers bid</li>
                                                 <li className="flex items-center gap-1.5 text-[var(--text-secondary)]"><X size={12} /> No trust badges</li>
                                             </ul>
                                             <div className="flex items-start gap-1.5 mt-3 pt-3 border-t border-[var(--border-default)]">
                                                 <Lock size={10} className="text-amber-500/70 shrink-0 mt-0.5" />
-                                                <p className="text-[10px] text-amber-500/70 leading-tight">Only verified dealers can list for auction</p>
+                                                <p className="text-[10px] text-amber-500/70 leading-tight">Private sellers and traders can list; bidding is dealer-only</p>
                                             </div>
                                         </button>
                                     ) : (

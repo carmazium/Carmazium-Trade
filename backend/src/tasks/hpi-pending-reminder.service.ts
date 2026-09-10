@@ -12,10 +12,9 @@ const REMINDER_COOLDOWN_DAYS = 3;
 /**
  * Chases admins about HPI reports that are still outstanding.
  *
- * This exists because publishing no longer waits for the report: a listing can
- * go live, run, and sell while its paid-for report is unprepared, so nothing in
- * the day-to-day flow forces staff to notice a stale one any more. Without this
- * a seller could pay and simply never be served.
+ * Every listing waits for its mandatory report before publication. This digest
+ * prevents a stale HPI queue from silently blocking sellers for days, and also
+ * highlights any buyers waiting for separately purchased emailed copies.
  *
  * Idempotency: `reminderSentAt` on the report is stamped once the digest is
  * sent, and a report has to have been quiet for REMINDER_COOLDOWN_DAYS before
@@ -49,7 +48,7 @@ export class HpiPendingReminderService {
             orderBy: { purchasedAt: 'asc' },
             include: {
                 listing: { select: { title: true } },
-                _count: { select: { emailRequests: true } },
+                _count: { select: { emailRequests: { where: { status: 'PENDING' } } } },
             },
         });
 
@@ -76,7 +75,7 @@ export class HpiPendingReminderService {
                 userId: admin.id,
                 type: 'HPI_REPORTS_OVERDUE',
                 title: `${overdue.length} HPI report${overdue.length === 1 ? '' : 's'} outstanding`,
-                message: `${overdue.length} paid vehicle history report${overdue.length === 1 ? ' has' : 's have'} been waiting ${OVERDUE_AFTER_DAYS}+ days.`,
+                message: `${overdue.length} mandatory vehicle-history review${overdue.length === 1 ? ' has' : 's have'} been waiting ${OVERDUE_AFTER_DAYS}+ days.`,
                 link: '/dashboard/admin/hpi',
             }).catch(() => null);
             if (!notification) {

@@ -10,7 +10,7 @@ import { DealerCtaButton } from "@/components/features/DealerCtaButton"
 
 export const metadata: Metadata = {
     title: "Pricing",
-    description: "Transparent pricing for listing your car, HPI vehicle checks, and featured boosts. List for free or upgrade to reach more buyers faster.",
+    description: "Transparent pricing for listing your car, mandatory vehicle-history review, optional emailed reports, and featured boosts.",
 }
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ const TIER_FEATURES: TierFeature[] = [
     { label: "DVLA auto-fill (VRM lookup)",   basic: true,     standard: true,    premium: true },
     { label: "Performance analytics",         basic: true,     standard: true,    premium: true },
     { label: "Priority search placement",     basic: false,    standard: false,   premium: true },
-    { label: "HPI Verified badge",            basic: "Add-on", standard: "Add-on", premium: "Included" },
+    { label: "Vehicle-history / HPI review",  basic: "Included", standard: "Included", premium: "Included" },
     { label: "Featured boost eligibility",    basic: true,     standard: true,    premium: true },
     { label: "Listing duration",              basic: "30 days", standard: "60 days", premium: "Until sold" },
 ]
@@ -41,8 +41,8 @@ const FAQS = [
         a: "Our Basic tier costs just £1 — no subscription, no hidden fees. You get a public listing with up to 5 photos, the offer system, and buyer chat. Upgrade to Standard or Premium if you want more photos, analytics, or better placement.",
     },
     {
-        q: "What does the HPI Check include?",
-        a: "The HPI report covers outstanding finance, write-off history, mileage anomalies, stolen vehicle records, and plate changes. A successful check adds a verified green badge to your listing, increasing buyer confidence.",
+        q: "Is the vehicle-history / HPI review optional?",
+        a: "No. Every listing must complete the vehicle-history review before it can go live. Sellers do not need to buy a separate HPI add-on during listing. A separate emailed vehicle-history report can still be purchased where offered.",
     },
     {
         q: "How long does a Featured Boost last?",
@@ -178,7 +178,7 @@ export default function PricingPage() {
                             <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> Featured boost eligible</li>
                             <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> 60-day listing duration</li>
                             <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><XCircle size={15} className="text-[var(--text-faint)] shrink-0" /> Priority search placement</li>
-                            <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><XCircle size={15} className="text-[var(--text-faint)] shrink-0" /> Free HPI included</li>
+                            <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> Vehicle-history review included</li>
                         </ul>
                         <Link href="/sell" className="block w-full py-3 rounded-xl border border-[var(--border-default)] text-center text-sm font-bold hover:bg-primary/5 dark:hover:bg-white/10 transition-all">
                             Get Standard
@@ -204,7 +204,7 @@ export default function PricingPage() {
                             <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> Everything in Standard</li>
                             <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> Up to 100 photos</li>
                             <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> Priority search placement</li>
-                            <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> HPI Verified badge included</li>
+                            <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> Vehicle-history review included</li>
                             <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> Advertise until sold</li>
                             <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> Featured boost eligible</li>
                             <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> Analytics: views, enquiries, offers & earnings</li>
@@ -249,26 +249,26 @@ export default function PricingPage() {
             <section className="container mx-auto px-6 mb-24">
                 <div className="max-w-5xl mx-auto">
                     <div className="text-center mb-10">
-                        <h2 className="text-2xl font-black mb-2">Optional Add-Ons</h2>
-                        <p className="text-[var(--text-muted)] text-sm">Enhance any listing at any time — buy once, apply instantly.</p>
+                        <h2 className="text-2xl font-black mb-2">Additional Services</h2>
+                        <p className="text-[var(--text-muted)] text-sm">Optional services are available alongside the mandatory vehicle-history review included with every listing.</p>
                     </div>
                     <div className="grid md:grid-cols-2 gap-6">
 
-                        {/* HPI Check */}
+                        {/* Optional emailed vehicle-history report */}
                         <div className="group glass-card !rounded-2xl hover:border-emerald-500/30 p-8 flex gap-6 hover:shadow-[0_0_30px_rgba(52,211,153,0.08)]">
                             <div className="w-14 h-14 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                                 <Shield size={24} className="text-emerald-500 dark:text-emerald-400" />
                             </div>
                             <div className="flex-1">
                                 <div className="flex items-start justify-between mb-2">
-                                    <h3 className="font-black text-lg">HPI Vehicle Check</h3>
+                                    <h3 className="font-black text-lg">Emailed Vehicle History Report</h3>
                                     <span className="text-2xl font-black">£{PRICING.hpiReport.price}</span>
                                 </div>
                                 <p className="text-[var(--text-muted)] text-sm mb-4 leading-relaxed">
-                                    Official HPI report covering outstanding finance, write-off history, mileage anomalies, stolen records, and plate changes. Adds a verified badge to your listing.
+                                    Your listing already includes the mandatory vehicle-history review before publication. This optional service provides a separate report copy by email, covering key history checks for your records.
                                 </p>
                                 <ul className="space-y-1.5">
-                                    {["Outstanding finance check", "Write-off & salvage history", "Stolen vehicle check", "Mileage discrepancy", "✓ Verified badge on listing"].map(f => (
+                                    {["Outstanding finance check", "Write-off & salvage history", "Stolen vehicle check", "Mileage discrepancy", "Emailed report copy"].map(f => (
                                         <li key={f} className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                                             <CheckCircle size={11} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> {f}
                                         </li>

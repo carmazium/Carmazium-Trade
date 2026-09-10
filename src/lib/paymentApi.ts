@@ -122,3 +122,26 @@ export async function getPaymentHistory(): Promise<PaymentTransaction[]> {
     })
     return data.data
 }
+
+/**
+ * Start payment for an accepted TradeXchange service quote. The backend
+ * re-derives the amount from the locked transaction row; no client amount is
+ * trusted. Stripe's webhook is the only authority that marks the job paid.
+ */
+export async function createTradeXchangeCheckout(jobId: string): Promise<CheckoutSessionResult> {
+    const data = await apiClient<{ data: CheckoutSessionResult }>('/payments/tradexchange-checkout', {
+        method: 'POST',
+        body: JSON.stringify({ jobId }),
+    })
+    return data.data
+}
+
+
+/** Webhook-delay fallback for a completed TradeXchange Stripe checkout. */
+export async function applyTradeXchangePayment(sessionId: string): Promise<{ applied: boolean; paymentStatus?: string }> {
+    const data = await apiClient<{ data: { applied: boolean; paymentStatus?: string } }>('/payments/apply-tradexchange-payment', {
+        method: 'POST',
+        body: JSON.stringify({ sessionId }),
+    })
+    return data.data
+}

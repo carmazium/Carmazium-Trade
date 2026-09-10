@@ -2,8 +2,8 @@
  * Presents listings created by an admin as CarMazium's own, rather than under
  * the individual staff member's personal name.
  *
- * WHY: admins list at any tier for free and go live without review (see
- * ListingsService.publishListing). But nothing was changing who the listing
+ * WHY: admins can list at any tier without a listing fee, but public listings
+ * still need to present as CarMazium rather than an individual staff account. Nothing was changing who the listing
  * appeared to be FROM. An ADMIN account is not a DEALER, so the seller block
  * fell through to `${firstName} ${lastName}` and rendered the staff member's
  * real name, badged "Verified Seller" — indistinguishable from a private

@@ -85,7 +85,7 @@ const SECTIONS: LegalSection[] = [
             p("CarMazium may provide:"),
             ul([
                 "free Auction Listings for eligible Sellers",
-                "24-hour or other timed Auctions",
+                "24-hour Auctions",
                 "Dealer bidding",
                 "£1 Retail Listings",
                 "vehicle search and discovery",
@@ -297,6 +297,7 @@ const SECTIONS: LegalSection[] = [
             p("Fee. Where a Vehicle is successfully purchased through a CarMazium Auction, the Successful Auction Buyer must pay CarMazium the applicable Auction Buyer Fee. The current fee is £125 per successfully purchased Auction Vehicle, unless another amount is clearly displayed before the Dealer bids."),
             p("Separate from Purchase Price. The £125 fee is payable to CarMazium. The Vehicle Purchase Price is payable directly to the Seller. These are completely separate payments."),
             p("Retail exemption. The £125 Auction Buyer Fee does not apply to Vehicles purchased through Retail Listings."),
+            p("Failed-sale refund. If CarMazium verifies before Handover that the Auction Vehicle materially differs from its listing because of an undisclosed fault or other material undisclosed condition, CarMazium may cancel the failed Auction sale and refund the Successful Auction Buyer’s £125 Auction Buyer Fee in full. A rejected or unclear Handover Evidence submission by itself is not a failed-sale event and does not trigger a Buyer Fee refund."),
             p("VAT. Where VAT is legally chargeable on a CarMazium fee, the Platform or invoice will state the applicable VAT treatment."),
         ],
     },
@@ -514,6 +515,8 @@ const SECTIONS: LegalSection[] = [
         num: 44,
         title: "Vehicle History Data",
         blocks: [
+            p("Mandatory pre-publication review. Each Listing must complete CarMazium's vehicle-history/HPI review before it can be approved and made live. This review is part of the Listing review workflow and is not a separate Seller HPI add-on charge."),
+            p("Auction reuse and Retail freshness. Where the same Vehicle is relisted through an Auction, CarMazium may reuse a previously completed report where it remains appropriate, together with updated Seller notes or review information. A Retail relist requires a fresh vehicle-history review before republication."),
             p("CarMazium may display information obtained from third-party providers, such as MOT information, Vehicle specification, finance indicators, valuation data, insurance category, and history information. Third-party data may contain errors or delays. CarMazium does not warrant that third-party databases are complete or error-free."),
         ],
     },
@@ -929,7 +932,7 @@ export default function TermsPage() {
                     <p className="text-[var(--text-muted)] text-lg max-w-2xl mx-auto">
                         These Terms govern your access to and use of the CarMazium website, online marketplace, auction facilities, retail listings, dealer services, Mazium AI features and associated services.
                     </p>
-                    <p className="text-[var(--text-muted)] text-sm mt-3">Last Updated: 13 August 2026</p>
+                    <p className="text-[var(--text-muted)] text-sm mt-3">Last Updated: 10 September 2026</p>
                 </div>
 
                 {/* Company card */}

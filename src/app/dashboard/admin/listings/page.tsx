@@ -241,11 +241,9 @@ export default function AdminListingsPage() {
                                 {pendingListings.map((l) => {
                                     const isExpanded = expandedId === l.id
                                     const isRejectedResubmit = l.status === 'REJECTED'
-                                    // Seller paid for an HPI report that hasn't been produced.
-                                    // Informational only — this no longer blocks approval; the
-                                    // listing goes live and the report is attached afterwards
-                                    // from the HPI queue.
-                                    const hpiPending = l.hpiReport?.status === 'PENDING'
+                                    // Every listing must complete its vehicle-history/HPI review before approval.
+                                    // Missing or pending reports therefore keep the listing in review.
+                                    const hpiPending = l.hpiReport?.status !== 'COMPLETED'
                                     return (
                                         <div key={l.id} className={`border rounded-xl overflow-hidden ${isRejectedResubmit ? 'border-red-500/30' : 'border-[var(--border-default)]'}`}>
                                             <button
@@ -358,8 +356,8 @@ export default function AdminListingsPage() {
                                                                         <div className="flex-1 min-w-0">
                                                                             <p className="text-xs font-bold text-primary">HPI report outstanding</p>
                                                                             <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                                                                                This seller paid for a vehicle history report. You can approve now and attach
-                                                                                it later — it stays in the HPI queue until you do.
+                                                                                This mandatory vehicle-history/HPI review must be completed before the listing can go live.
+                                                                                Finish it from the HPI queue, then return here to approve the listing.
                                                                             </p>
                                                                         </div>
                                                                     </div>
@@ -411,8 +409,8 @@ export default function AdminListingsPage() {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleApprove(l.id)}
-                                                                    disabled={actionLoading === l.id}
-                                                                    title={hpiPending ? 'Goes live with its HPI report still outstanding — attach it later from the HPI queue' : undefined}
+                                                                    disabled={actionLoading === l.id || hpiPending}
+                                                                    title={hpiPending ? 'Complete the mandatory HPI report before approval' : undefined}
                                                                     className="flex-1 px-4 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-xs uppercase tracking-widest hover:bg-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 cursor-pointer"
                                                                 >
                                                                     {actionLoading === l.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}

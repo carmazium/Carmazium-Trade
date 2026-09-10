@@ -13,9 +13,7 @@ import { createCheckoutSession } from "@/lib/paymentApi"
 import { useAuth } from "@/context/AuthContext"
 
 const DEPOSIT_AMOUNT = 500 // £500 refundable deposit
-const AUCTION_BUYER_FEE = 125 // £125 total: £100 seller bonus + £25 platform
-const AUCTION_SELLER_BONUS = 100 // released to seller after handover proof
-const AUCTION_PLATFORM_FEE = 25 // non-refundable Carmazium fee
+const AUCTION_BUYER_FEE = 125 // CarMazium auction buyer/platform fee
 
 export default function CheckoutPage() {
     return (
@@ -261,8 +259,7 @@ function CheckoutContent() {
                         <div>
                             <p className="text-sm font-bold text-blue-400 mb-1">Refund Policy</p>
                             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                If the vehicle sale does not complete for any reason, <span className="text-[var(--text-primary)] font-bold">£{AUCTION_SELLER_BONUS} is refunded</span> to you.
-                                The £{AUCTION_PLATFORM_FEE} platform fee is non-refundable.
+                                If CarMazium approves a failed-sale cancellation — for example because a material undisclosed fault is confirmed before handover — <span className="text-[var(--text-primary)] font-bold">your £{AUCTION_BUYER_FEE} buyer fee is refunded in full</span>.
                             </p>
                         </div>
                     </div>

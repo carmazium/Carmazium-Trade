@@ -74,7 +74,7 @@ interface Review {
 
 // ─── Data Fetching ────────────────────────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://carmazium-hjoh9w.fly.dev"
 
 async function getSellerProfile(userId: string): Promise<SellerData | null> {
     try {

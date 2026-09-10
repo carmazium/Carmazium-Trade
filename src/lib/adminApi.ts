@@ -76,6 +76,14 @@ export async function assignAuctionWinner(auctionId: string, dealerId: string) {
   return result;
 }
 
+export async function refundAuctionBuyerFee(auctionId: string, reason?: string) {
+  const result = await apiClient<any>(`/admin/auctions/${auctionId}/refund-buyer-fee`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+  return result;
+}
+
 export async function getAdminTransactions(page = 1, limit = 20) {
   const result = await apiClient<any>(`/admin/transactions?page=${page}&limit=${limit}`);
   return result;
