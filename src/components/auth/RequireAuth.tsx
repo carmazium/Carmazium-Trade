@@ -37,11 +37,14 @@ interface Props {
     unauthorizedTitle?: string
     unauthorizedMessage?: string
     /**
-     * Role the wrong-role panel invites the visitor to upgrade to. Set it and
-     * the panel becomes a conversion step ("Create a Dealer Account") instead of
-     * a dead end that only offers a way back out.
+     * Where the wrong-role panel sends someone who wants trade access. Defaults
+     * to the profile role switcher.
+     *
+     * Deliberately NOT a signup link: everyone who reaches this branch is
+     * already signed in, so pointing them at signup asks them to create a
+     * second account for a role their existing one can hold.
      */
-    upgradeRole?: string
+    upgradeHref?: string
     /**
      * Require an APPROVED dealer KYC, not just the DEALER role.
      *
@@ -86,7 +89,7 @@ export function RequireAuth({
     allowedRoles,
     unauthorizedTitle = "Upgrade to a Dealer Account",
     unauthorizedMessage = "The Trade Exchange — live auctions, part exchange and trade jobs — is open to registered dealers. Your account doesn't have trade access yet.",
-    upgradeRole = "DEALER",
+    upgradeHref = "/profile#upgrade-role",
     requireVerifiedDealer,
 }: Props) {
     const { user, profile, loading } = useAuth()
@@ -154,10 +157,14 @@ export function RequireAuth({
         // asking for the trade room, so the panel sells the upgrade rather than
         // just closing the door — the "browse cars" link stays as the way out.
         //
-        // The primary CTA opens a DEALER signup rather than flipping the current
-        // account's role. Trade access carries KYC and a verification review, so
-        // it is not something a button may grant; the account goes through the
-        // same door every other dealer does.
+        // The CTA switches this account's role rather than opening a signup.
+        // Everyone here is already signed in, so a signup link would ask them to
+        // create a second account for a role this one can hold.
+        //
+        // Safe to offer in place because the switch grants the DEALER role and
+        // nothing else: trade stock additionally requires an approved KYC, which
+        // VerifiedDealerGuard checks server-side. The upgrade puts them on the
+        // path, it does not skip the verification at the end of it.
         return (
             <div className="min-h-[70vh] flex items-center justify-center px-5 py-20">
                 <div className="w-full max-w-md text-center">
@@ -186,10 +193,10 @@ export function RequireAuth({
 
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
                         <Link
-                            href={`/auth/signup?redirect=${redirect}&role=${encodeURIComponent(upgradeRole)}`}
+                            href={upgradeHref}
                             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-white text-sm font-black uppercase tracking-widest hover:bg-primary/90 transition-colors"
                         >
-                            <BadgeCheck size={16} /> Create a Dealer Account
+                            <BadgeCheck size={16} /> Switch to a Dealer Account
                         </Link>
                         <Link
                             href="/search"
@@ -200,10 +207,8 @@ export function RequireAuth({
                     </div>
 
                     <p className="text-xs text-[var(--text-muted)] mt-8">
-                        Already trade?{" "}
-                        <Link href="/contact" className="text-primary font-semibold hover:underline">
-                            Ask us to switch this account over
-                        </Link>
+                        You keep this account and everything on it. Dealer accounts are
+                        verified before trade access opens.
                     </p>
                 </div>
             </div>

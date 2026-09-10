@@ -5,12 +5,15 @@ import { apiClient } from "@/lib/apiClient"
 import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/Button"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
-import { Shield, Car, Wrench, CreditCard, Loader2, CheckCircle2, User } from "lucide-react"
+import { Shield, Car, Wrench, CreditCard, Loader2, CheckCircle2, User, AlertCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export default function ProfilePage() {
     const { profile, refreshProfile, loading: authLoading } = useAuth()
+    const router = useRouter()
     const [loading, setLoading] = React.useState(false)
     const [success, setSuccess] = React.useState<string | null>(null)
+    const [roleError, setRoleError] = React.useState<string | null>(null)
     const [dealerLoading, setDealerLoading] = React.useState(false)
     const [dealerForm, setDealerForm] = React.useState({
         companyName: profile?.dealerProfile?.companyName || '',
@@ -55,16 +58,30 @@ export default function ProfilePage() {
     const handleRoleElevation = async (newRole: string) => {
         setLoading(true)
         setSuccess(null)
+        setRoleError(null)
         try {
             await apiClient('/users/elevate', {
                 method: 'POST',
                 body: JSON.stringify({ newRole })
             })
 
-            setSuccess(`Successfully requested elevation to ${newRole}!`)
             await refreshProfile()
+
+            // Becoming a dealer is not the finish line — trade access needs an
+            // approved KYC. Drop them straight into the dealer dashboard, where
+            // the KYC form is waiting, instead of leaving them on a success
+            // message with no idea what happens next.
+            if (newRole === 'DEALER') {
+                router.push('/dashboard/dealer')
+                return
+            }
+
+            setSuccess(`Your account is now set up as ${newRole}.`)
         } catch (error: any) {
+            // The endpoint refuses roles that need staff to grant them. Silently
+            // swallowing that left the button looking broken.
             console.error('Elevation failed:', error)
+            setRoleError(error?.message || 'Could not change your account type. Please try again.')
         } finally {
             setLoading(false)
         }
@@ -200,7 +217,10 @@ export default function ProfilePage() {
                 </section>
             )}
 
-            <section>
+            {/* id is the link target used by the Trade Exchange gate
+                (/profile#upgrade-role). scroll-mt clears the fixed header, which
+                would otherwise cover the heading on arrival. */}
+            <section id="upgrade-role" className="scroll-mt-28">
                 <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                     <Car className="text-primary" /> Elevate Your Account Role
                 </h3>
@@ -212,6 +232,13 @@ export default function ProfilePage() {
                     <div className="mb-8 p-4 bg-green-500/10 dark:bg-green-500/20 border border-green-500/50 rounded-xl text-green-700 dark:text-green-200 flex items-center gap-3">
                         <CheckCircle2 size={18} />
                         {success}
+                    </div>
+                )}
+
+                {roleError && (
+                    <div className="mb-8 p-4 bg-red-500/10 border border-red-500/40 rounded-xl text-red-600 dark:text-red-300 flex items-start gap-3">
+                        <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                        {roleError}
                     </div>
                 )}
 
