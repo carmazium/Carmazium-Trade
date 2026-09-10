@@ -84,6 +84,13 @@ export class UsersController {
             throw new BadRequestException('New role is required');
         }
 
+        // `newRole` arrives as an untyped body field — the TS annotation proves
+        // nothing at runtime. Reject anything that isn't a real enum member here
+        // so a malformed value can never reach the query layer.
+        if (!Object.values(UserRole).includes(newRole)) {
+            throw new BadRequestException('Unknown role');
+        }
+
         return {
             success: true,
             data: await this.usersService.requestRoleElevation(user.id, newRole),

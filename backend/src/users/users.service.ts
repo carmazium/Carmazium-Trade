@@ -2,6 +2,8 @@ import {
     Injectable,
     NotFoundException,
     BadRequestException,
+    ForbiddenException,
+    Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -25,6 +27,8 @@ function assertValidPhone(phone: string) {
 
 @Injectable()
 export class UsersService {
+    private readonly logger = new Logger(UsersService.name);
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly emailService: EmailService,
@@ -219,8 +223,32 @@ export class UsersService {
     }
 
     /**
-     * Request a role elevation or switch.
-     * In production this would create an approval request; for dev we update directly.
+     * Roles a signed-in user may move themselves into, unassisted.
+     *
+     * Everything absent from this list is privileged and must be granted by an
+     * admin, never by the account itself:
+     *   ADMIN                       — full platform control
+     *   CONTRACTOR                  — service-provider dashboard and job feed
+     *   FINANCE_PARTNER / INSURANCE_PARTNER — partner dashboards and lead access
+     *
+     * DEALER is self-serve on purpose: it only unlocks the dealer dashboard in
+     * limited mode, and everything that matters behind it (bidding, payouts)
+     * additionally requires an approved KYC review.
+     */
+    private static readonly SELF_SERVICE_ROLES: readonly UserRole[] = [
+        UserRole.BUYER,
+        UserRole.SELLER,
+        UserRole.DEALER,
+    ];
+
+    /**
+     * Switch the caller's own account between self-service roles.
+     *
+     * This used to write whatever role it was handed, straight to the database,
+     * for any authenticated caller — so any signed-in buyer could POST
+     * `{ newRole: 'ADMIN' }` and take over the platform. The allowlist below is
+     * the fix; do not replace it with a denylist, because a new privileged role
+     * added to the enum would then be self-grantable by default.
      */
     async requestRoleElevation(userId: string, newRole: UserRole) {
         const user = await this.prisma.user.findUnique({
@@ -231,10 +259,30 @@ export class UsersService {
             throw new NotFoundException('User not found');
         }
 
+        if (!UsersService.SELF_SERVICE_ROLES.includes(newRole)) {
+            // Deliberately vague to the caller, loud in the logs: probing this
+            // endpoint for privileged roles is not something a real user does.
+            this.logger.warn(
+                `Blocked self-service role escalation: user ${userId} (${user.role}) requested ${newRole}`,
+            );
+            throw new ForbiddenException(
+                'That account type has to be set up by our team. Contact support to request it.',
+            );
+        }
+
+        // An admin must not be able to drop their own privileges through the
+        // self-service door — a hijacked admin session could use it to hide the
+        // takeover, and a real admin has no reason to demote themselves here.
+        if (user.role === UserRole.ADMIN) {
+            throw new ForbiddenException('Admin accounts cannot change their own role.');
+        }
+
         const updated = await this.prisma.user.update({
             where: { id: userId },
             data: { role: newRole },
         });
+
+        this.logger.log(`Role change: user ${userId} ${user.role} -> ${newRole}`);
 
         const { passwordHash: _, ...safeUser } = updated;
         return safeUser;
