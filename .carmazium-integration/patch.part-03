@@ -1,0 +1,247 @@
++RETURNS void
++LANGUAGE plpgsql
++SECURITY DEFINER
++SET search_path = public
++AS $$
++DECLARE v_job public.tradexchange_jobs%ROWTYPE;
++BEGIN
++    IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
++    SELECT * INTO v_job FROM public.tradexchange_jobs WHERE id=_job_id FOR UPDATE;
++    IF NOT FOUND OR v_job.customer_user_id <> (select auth.uid())::text THEN
++        RAISE EXCEPTION 'Only the customer who posted this job can cancel it';
++    END IF;
++    IF v_job.status NOT IN ('draft','open','awaiting_payment') THEN
++        RAISE EXCEPTION 'This job can no longer be cancelled here';
++    END IF;
++    IF EXISTS (SELECT 1 FROM public.tradexchange_transactions t WHERE t.job_id=_job_id AND t.payment_status='paid') THEN
++        RAISE EXCEPTION 'A paid job must be refunded through the dispute/refund workflow';
++    END IF;
++    UPDATE public.tradexchange_jobs SET status='cancelled', updated_at=now() WHERE id=_job_id;
++    UPDATE public.tradexchange_offers SET status='declined', updated_at=now()
++      WHERE job_id=_job_id AND status='active';
++    INSERT INTO public.tradexchange_job_events(job_id, actor_user_id, event_type, metadata)
++    VALUES(_job_id, (select auth.uid())::text, 'job_cancelled', jsonb_build_object('reason', NULLIF(trim(_reason),'')));
++END;
++$$;
++
++CREATE OR REPLACE FUNCTION public.accept_service_offer(_offer_id uuid)
++RETURNS uuid
++LANGUAGE sql
++SECURITY DEFINER
++SET search_path = public
++AS $$ SELECT public.tradexchange_accept_offer(_offer_id); $$;
++
++CREATE OR REPLACE FUNCTION public.service_job_offer_board(_job_id uuid)
++RETURNS TABLE(
++    offer_id uuid,
++    business_id text,
++    business_name text,
++    business_slug text,
++    verification_status text,
++    amount_pence integer,
++    message text,
++    available_from date,
++    status text,
++    created_at timestamptz,
++    rating numeric,
++    review_count integer,
++    badges text[],
++    about text,
++    public_website text
++)
++LANGUAGE plpgsql
++STABLE
++SECURITY DEFINER
++SET search_path = public
++AS $$
++BEGIN
++    IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
++    IF NOT public.tradexchange_is_admin()
++       AND NOT EXISTS (SELECT 1 FROM public.tradexchange_jobs j WHERE j.id=_job_id AND j.customer_user_id=(select auth.uid())::text)
++    THEN RAISE EXCEPTION 'Only the customer who posted this job can compare offers'; END IF;
++
++    RETURN QUERY
++    SELECT
++        o.id, o.dealer_profile_id, d."companyName", NULL::text,
++        CASE WHEN d."isVerified" THEN 'verified' ELSE 'pending' END,
++        o.amount_pence, o.message, o.available_from,
++        CASE o.status WHEN 'active' THEN 'submitted' ELSE o.status END,
++        o.created_at,
++        NULL::numeric, 0::integer, ARRAY[]::text[], d.description, d.website
++    FROM public.tradexchange_offers o
++    JOIN public.dealer_profiles d ON d.id=o.dealer_profile_id AND d."deletedAt" IS NULL
++    WHERE o.job_id=_job_id
++    ORDER BY CASE o.status WHEN 'active' THEN 0 WHEN 'accepted' THEN 1 ELSE 2 END, o.amount_pence, o.created_at;
++END;
++$$;
++
++CREATE OR REPLACE FUNCTION public.service_job_contact(_job_id uuid)
++RETURNS TABLE(contact_name text, contact_phone text, contact_notes text)
++LANGUAGE plpgsql
++STABLE
++SECURITY DEFINER
++SET search_path = public
++AS $$
++DECLARE v_job public.tradexchange_jobs%ROWTYPE;
++BEGIN
++    IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
++    SELECT * INTO v_job FROM public.tradexchange_jobs WHERE id=_job_id;
++    IF NOT FOUND THEN RAISE EXCEPTION 'Job not found'; END IF;
++
++    IF v_job.customer_user_id <> (select auth.uid())::text
++       AND NOT (
++            v_job.provider_dealer_profile_id IS NOT NULL
++            AND v_job.status IN ('booked','in_progress','provider_completed','completed','disputed')
++            AND public.tradexchange_can_provide(v_job.provider_dealer_profile_id, v_job.service_type)
++       )
++       AND NOT public.tradexchange_is_admin()
++    THEN RAISE EXCEPTION 'Contact details unlock only for the customer and the selected paid provider'; END IF;
++
++    RETURN QUERY
++    SELECT trim(concat_ws(' ', u."firstName", u."lastName")),
++           COALESCE(v_job.contact_phone, u.phone),
++           v_job.contact_notes
++    FROM public.users u
++    WHERE u.id=v_job.customer_user_id;
++END;
++$$;
++
++CREATE OR REPLACE FUNCTION public.confirm_service_job_completion(_job_id uuid)
++RETURNS text
++LANGUAGE plpgsql
++SECURITY DEFINER
++SET search_path = public
++AS $$
++DECLARE v_status text;
++BEGIN
++    PERFORM public.tradexchange_update_job_progress(_job_id, 'customer_confirm');
++    SELECT status INTO v_status FROM public.tradexchange_jobs WHERE id=_job_id;
++    RETURN v_status;
++END;
++$$;
++
++CREATE OR REPLACE FUNCTION public.report_service_job_issue(_job_id uuid, _kind text, _detail text DEFAULT NULL)
++RETURNS void
++LANGUAGE plpgsql
++SECURITY DEFINER
++SET search_path = public
++AS $$
++BEGIN
++    IF _kind NOT IN ('no_show','failed','disputed') THEN RAISE EXCEPTION 'Invalid issue type'; END IF;
++    -- All service failures enter the same pre-payout dispute hold. The kind is
++    -- retained in the reason/audit trail instead of inventing an unsafe payout state.
++    PERFORM public.tradexchange_open_dispute(
++        _job_id,
++        left(_kind || ': ' || COALESCE(NULLIF(trim(_detail),''), 'Service issue reported'), 2000)
++    );
++END;
++$$;
++
++CREATE OR REPLACE FUNCTION public.my_provider_summary()
++RETURNS TABLE(
++    business_id text,
++    business_name text,
++    category text,
++    open_offers integer,
++    won_jobs integer,
++    completed_jobs integer,
++    gross_pence bigint,
++    fee_pence bigint,
++    net_pence bigint
++)
++LANGUAGE sql
++STABLE
++SECURITY DEFINER
++SET search_path = public
++AS $$
++WITH contexts AS (
++    SELECT c.dealer_profile_id, c.company_name,
++           unnest(ARRAY[
++             CASE WHEN c.can_delivery_view OR c.can_delivery_offer OR c.can_delivery_complete THEN 'delivery' END,
++             CASE WHEN c.can_inspection_view OR c.can_inspection_offer OR c.can_inspection_complete THEN 'inspection' END
++           ]) AS category
++    FROM public.tradexchange_my_provider_contexts() c
++), clean AS (
++    SELECT DISTINCT dealer_profile_id, company_name, category FROM contexts WHERE category IS NOT NULL
++)
++SELECT
++    c.dealer_profile_id,
++    c.company_name,
++    c.category,
++    (SELECT count(*)::integer FROM public.tradexchange_offers o
++      JOIN public.tradexchange_jobs j ON j.id=o.job_id
++      WHERE o.dealer_profile_id=c.dealer_profile_id AND o.status='active'
++        AND j.service_type=CASE c.category WHEN 'delivery' THEN 'delivery_recovery' ELSE 'vehicle_inspection' END),
++    (SELECT count(*)::integer FROM public.tradexchange_jobs j
++      WHERE j.provider_dealer_profile_id=c.dealer_profile_id
++        AND j.service_type=CASE c.category WHEN 'delivery' THEN 'delivery_recovery' ELSE 'vehicle_inspection' END),
++    (SELECT count(*)::integer FROM public.tradexchange_jobs j
++      WHERE j.provider_dealer_profile_id=c.dealer_profile_id AND j.status='completed'
++        AND j.service_type=CASE c.category WHEN 'delivery' THEN 'delivery_recovery' ELSE 'vehicle_inspection' END),
++    COALESCE((SELECT sum(t.gross_amount_pence) FROM public.tradexchange_transactions t
++      JOIN public.tradexchange_jobs j ON j.id=t.job_id
++      WHERE t.provider_dealer_profile_id=c.dealer_profile_id AND j.status='completed'
++        AND j.service_type=CASE c.category WHEN 'delivery' THEN 'delivery_recovery' ELSE 'vehicle_inspection' END),0)::bigint,
++    COALESCE((SELECT sum(t.platform_fee_pence) FROM public.tradexchange_transactions t
++      JOIN public.tradexchange_jobs j ON j.id=t.job_id
++      WHERE t.provider_dealer_profile_id=c.dealer_profile_id AND j.status='completed'
++        AND j.service_type=CASE c.category WHEN 'delivery' THEN 'delivery_recovery' ELSE 'vehicle_inspection' END),0)::bigint,
++    COALESCE((SELECT sum(t.provider_amount_pence) FROM public.tradexchange_transactions t
++      JOIN public.tradexchange_jobs j ON j.id=t.job_id
++      WHERE t.provider_dealer_profile_id=c.dealer_profile_id AND j.status='completed'
++        AND j.service_type=CASE c.category WHEN 'delivery' THEN 'delivery_recovery' ELSE 'vehicle_inspection' END),0)::bigint
++FROM clean c;
++$$;
++
++-- ---------------------------------------------------------------------------
++-- 5. Data API grants. RPCs are authenticated-only; helper RPCs are no longer
++--    anonymously callable. RLS still scopes direct SELECTs.
++-- ---------------------------------------------------------------------------
++GRANT SELECT ON public.tradexchange_job_events, public.tradexchange_disputes,
++    public.tradexchange_finance_leads TO authenticated;
++GRANT SELECT ON public.tradexchange_audit_log TO authenticated;
++
++REVOKE ALL ON public.tradexchange_job_events, public.tradexchange_audit_log,
++    public.tradexchange_disputes, public.tradexchange_finance_leads FROM anon;
++
++REVOKE EXECUTE ON FUNCTION public.provider_job_feed(text) FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.submit_service_offer(uuid,text,integer,text,date) FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.withdraw_service_offer(uuid) FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.post_service_job(text,text,text,text,text,date,integer,text,text,text,text) FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.cancel_service_job(uuid,text) FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.accept_service_offer(uuid) FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.service_job_offer_board(uuid) FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.service_job_contact(uuid) FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.confirm_service_job_completion(uuid) FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.report_service_job_issue(uuid,text,text) FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.my_provider_summary() FROM PUBLIC, anon;
++GRANT EXECUTE ON FUNCTION public.provider_job_feed(text),
++    public.submit_service_offer(uuid,text,integer,text,date),
++    public.withdraw_service_offer(uuid),
++    public.post_service_job(text,text,text,text,text,date,integer,text,text,text,text),
++    public.cancel_service_job(uuid,text),
++    public.accept_service_offer(uuid),
++    public.service_job_offer_board(uuid),
++    public.service_job_contact(uuid),
++    public.confirm_service_job_completion(uuid),
++    public.report_service_job_issue(uuid,text,text),
++    public.my_provider_summary() TO authenticated;
++
++-- Existing helper functions were accidentally callable by anonymous users.
++-- Keep them executable for authenticated RLS evaluation, but remove public/anon.
++REVOKE EXECUTE ON FUNCTION public.current_uid() FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.has_user_role(public.user_role) FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.is_admin() FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.my_dealer_profile_ids() FROM PUBLIC, anon;
++REVOKE EXECUTE ON FUNCTION public.owns_listing(text) FROM PUBLIC, anon;
++GRANT EXECUTE ON FUNCTION public.current_uid(), public.has_user_role(public.user_role),
++    public.is_admin(), public.my_dealer_profile_ids(), public.owns_listing(text) TO authenticated;
++
++-- ---------------------------------------------------------------------------
++-- 6. Low-risk indexes flagged by the Supabase performance advisor.
++-- ---------------------------------------------------------------------------
++CREATE INDEX IF NOT EXISTS analytics_events_userId_idx ON public.analytics_events("userId");
++CREATE INDEX IF NOT EXISTS auctions_winnerId_idx ON public.auctions("winnerId");
++CREATE INDEX IF NOT EXISTS chat_rooms_listingId_idx ON public.chat_rooms("listingId");
++CREATE INDEX IF NOT EXISTS delivery_requests_offerId_idx ON public.delivery_requests("offerId");
++CREATE INDEX IF NOT EXISTS hpi_reports_preparedById_idx ON public.hpi_reports("preparedById");
