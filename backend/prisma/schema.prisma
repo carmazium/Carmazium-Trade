@@ -15,6 +15,18 @@ datasource db {
 // ENUMS
 // ============================================================================
 
+/**
+ * How a dealer's business is constituted. Drives which KYC evidence we ask for:
+ * a limited company has a VAT number and a Companies House record; a sole trader
+ * has neither, and proves themselves with photo ID plus proof of address.
+ */
+enum BusinessType {
+  PRIVATE_LIMITED
+  SOLE_PROPRIETORSHIP
+
+  @@map("business_type")
+}
+
 enum UserRole {
   ADMIN
   BUYER
@@ -417,6 +429,9 @@ model DealerProfile {
 model DealerKyc {
   id                         String        @id @default(uuid())
   dealerProfileId            String        @unique
+  // Existing rows predate this column and are all limited companies, so the
+  // default backfills them correctly.
+  businessType               BusinessType  @default(PRIVATE_LIMITED)
   companyHouseName           String
   representativeName         String
   representativePosition     String
@@ -427,6 +442,7 @@ model DealerKyc {
   personOfSignificantControl String
   directorName               String
   directorIdProof            String?       // Optional URL to stored Director ID photo
+  proofOfAddress             String?       // Sole traders only — utility bill / bank statement
   businessWebsite            String
   businessRegisteredAddress  String
   tradingAddress             String?

@@ -1,7 +1,16 @@
-import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsEnum } from 'class-validator';
+import { BusinessType } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateKycDto {
+    @ApiPropertyOptional({
+        enum: BusinessType,
+        description: 'Defaults to PRIVATE_LIMITED so older clients that predate the toggle keep working',
+    })
+    @IsOptional()
+    @IsEnum(BusinessType)
+    businessType?: BusinessType;
+
     @ApiProperty({ description: 'Registered Company House name' })
     @IsString()
     @IsNotEmpty()
@@ -17,45 +26,50 @@ export class CreateKycDto {
     @IsNotEmpty()
     representativePosition: string;
 
-    @ApiProperty({ description: 'VAT Number' })
+    @ApiPropertyOptional({ description: 'VAT Number — limited companies only; sole traders have none' })
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    vatNumber: string;
+    vatNumber?: string;
 
     @ApiPropertyOptional({ description: 'URL to uploaded VAT certificate/proof image' })
     @IsOptional()
     @IsString()
     vatProof?: string;
 
-    @ApiProperty({ description: 'Company Registration Number' })
+    @ApiPropertyOptional({ description: 'Companies House number — limited companies only' })
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    companyRegistrationNumber: string;
+    companyRegistrationNumber?: string;
 
     @ApiPropertyOptional({ description: 'URL to uploaded Company House registration certificate' })
     @IsOptional()
     @IsString()
     companyRegistrationProof?: string;
 
-    @ApiProperty({ description: 'Person of Significant Control' })
+    @ApiPropertyOptional({ description: 'Person of Significant Control — a limited-company concept' })
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    personOfSignificantControl: string;
+    personOfSignificantControl?: string;
 
     @ApiProperty({ description: 'Director name' })
     @IsString()
     @IsNotEmpty()
     directorName: string;
 
-    @ApiPropertyOptional({ description: 'URL to uploaded Director ID / Passport photo' })
+    @ApiPropertyOptional({ description: 'URL to uploaded photo ID (driving licence or passport)' })
     @IsOptional()
     @IsString()
     directorIdProof?: string;
 
-    @ApiProperty({ description: 'Business Website' })
+    @ApiPropertyOptional({ description: 'URL to uploaded proof of address — sole traders only' })
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    businessWebsite: string;
+    proofOfAddress?: string;
+
+    @ApiPropertyOptional({ description: 'Business Website — not every sole trader has one' })
+    @IsOptional()
+    @IsString()
+    businessWebsite?: string;
 
     @ApiProperty({ description: 'Registered Business Address' })
     @IsString()

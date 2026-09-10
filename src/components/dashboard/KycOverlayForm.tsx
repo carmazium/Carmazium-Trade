@@ -28,12 +28,25 @@ import {
   FileCheck,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { getDealerKyc, submitDealerKyc, DealerKycData, createKycCheckoutSession } from "@/lib/dealerApi";
+import { getDealerKyc, submitDealerKyc, DealerKycData, BusinessType, createKycCheckoutSession } from "@/lib/dealerApi";
 import { uploadImage } from "@/lib/supabase";
 import { apiClient } from "@/lib/apiClient";
 import { useRouter } from "next/navigation";
 
 export const KYC_SKIP_KEY = 'kyc_skipped_v1';
+
+const BUSINESS_TYPE_OPTIONS: { value: BusinessType; label: string; hint: string }[] = [
+  {
+    value: "PRIVATE_LIMITED",
+    label: "Private Limited",
+    hint: "Registered at Companies House (Ltd)",
+  },
+  {
+    value: "SOLE_PROPRIETORSHIP",
+    label: "Sole Proprietorship",
+    hint: "Trading as an individual, no Ltd company",
+  },
+];
 
 // ─── File Upload Component ─────────────────────────────────────────────────────
 
@@ -258,6 +271,7 @@ export function KycOverlayForm({ onSkip }: { onSkip?: () => void }) {
 
   // ── Text Form Fields ──
   const [formData, setFormData] = useState({
+    businessType: "PRIVATE_LIMITED" as BusinessType,
     companyHouseName: "",
     representativeName: "",
     representativePosition: "",
@@ -274,6 +288,7 @@ export function KycOverlayForm({ onSkip }: { onSkip?: () => void }) {
   // ── File Upload URL Fields ──
   const [fileUrls, setFileUrls] = useState({
     directorIdProof: "",
+    proofOfAddress: "",
     vatProof: "",
     companyRegistrationProof: "",
   });
@@ -286,6 +301,9 @@ export function KycOverlayForm({ onSkip }: { onSkip?: () => void }) {
         setKycData(kyc);
         if (kyc) {
           setFormData({
+            // Records created before the toggle existed have no businessType —
+            // they are all limited companies, so that is the right fallback.
+            businessType: kyc.businessType || "PRIVATE_LIMITED",
             companyHouseName: kyc.companyHouseName || "",
             representativeName: kyc.representativeName || "",
             representativePosition: kyc.representativePosition || "",
@@ -300,6 +318,7 @@ export function KycOverlayForm({ onSkip }: { onSkip?: () => void }) {
           });
           setFileUrls({
             directorIdProof: kyc.directorIdProof || "",
+            proofOfAddress: kyc.proofOfAddress || "",
             vatProof: kyc.vatProof || "",
             companyRegistrationProof: kyc.companyRegistrationProof || "",
           });
@@ -384,19 +403,30 @@ export function KycOverlayForm({ onSkip }: { onSkip?: () => void }) {
     }
   };
 
+  // A sole trader is not registered at Companies House and is usually below the
+  // VAT threshold, so the limited-company evidence simply does not exist for
+  // them. Asking for it anyway is what was blocking them from verifying at all.
+  const isSoleTrader = formData.businessType === "SOLE_PROPRIETORSHIP";
+
   const validateStep = (step: number): boolean => {
     setErrorMsg("");
     if (step === 1) {
-      if (!formData.companyHouseName.trim()) { setErrorMsg("Company Name is required."); return false; }
+      if (!formData.companyHouseName.trim()) { setErrorMsg(isSoleTrader ? "Trading Name is required." : "Company Name is required."); return false; }
       if (!formData.representativeName.trim()) { setErrorMsg("Representative Name is required."); return false; }
       if (!formData.representativePosition.trim()) { setErrorMsg("Representative Position is required."); return false; }
-      if (!formData.directorName.trim()) { setErrorMsg("Director Name is required."); return false; }
-      if (!formData.personOfSignificantControl.trim()) { setErrorMsg("Person of Significant Control (PSC) is required."); return false; }
+      if (!formData.directorName.trim()) { setErrorMsg(isSoleTrader ? "Owner Full Name is required." : "Director Name is required."); return false; }
+      if (!isSoleTrader && !formData.personOfSignificantControl.trim()) { setErrorMsg("Person of Significant Control (PSC) is required."); return false; }
     } else if (step === 2) {
-      if (!formData.vatNumber.trim()) { setErrorMsg("VAT Number is required."); return false; }
-      if (!formData.companyRegistrationNumber.trim()) { setErrorMsg("Company Registration Number is required."); return false; }
-      if (!formData.businessWebsite.trim()) { setErrorMsg("Business Website is required."); return false; }
-      if (!formData.businessRegisteredAddress.trim()) { setErrorMsg("Registered Business Address is required."); return false; }
+      if (isSoleTrader) {
+        // Identity and address stand in for the company register.
+        if (!fileUrls.directorIdProof) { setErrorMsg("Please upload your driving licence or passport."); return false; }
+        if (!fileUrls.proofOfAddress) { setErrorMsg("Please upload a proof of address."); return false; }
+      } else {
+        if (!formData.vatNumber.trim()) { setErrorMsg("VAT Number is required."); return false; }
+        if (!formData.companyRegistrationNumber.trim()) { setErrorMsg("Company Registration Number is required."); return false; }
+        if (!formData.businessWebsite.trim()) { setErrorMsg("Business Website is required."); return false; }
+      }
+      if (!formData.businessRegisteredAddress.trim()) { setErrorMsg(isSoleTrader ? "Business Address is required." : "Registered Business Address is required."); return false; }
     }
     return true;
   };
@@ -815,14 +845,30 @@ export function KycOverlayForm({ onSkip }: { onSkip?: () => void }) {
                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {renderInput({ label: "Company House Registered Name", name: "companyHouseName", value: formData.companyHouseName, placeholder: "e.g. Carmazium Dealership Ltd", icon: Building2 })}
-                    {renderInput({ label: "Lead Director Full Name", name: "directorName", value: formData.directorName, placeholder: "e.g. Arthur Pendragon", icon: User })}
+                    {renderInput({
+                      label: isSoleTrader ? "Trading Name" : "Company House Registered Name",
+                      name: "companyHouseName",
+                      value: formData.companyHouseName,
+                      placeholder: isSoleTrader ? "e.g. Carmazium Motors" : "e.g. Carmazium Dealership Ltd",
+                      icon: Building2,
+                    })}
+                    {renderInput({
+                      label: isSoleTrader ? "Owner Full Name" : "Lead Director Full Name",
+                      name: "directorName",
+                      value: formData.directorName,
+                      placeholder: "e.g. Arthur Pendragon",
+                      icon: User,
+                    })}
                     {renderInput({ label: "Account Representative Full Name", name: "representativeName", value: formData.representativeName, placeholder: "e.g. John Doe", icon: User })}
                     {renderInput({ label: "Representative Job Title", name: "representativePosition", value: formData.representativePosition, placeholder: "e.g. Head of Acquisitions", icon: User })}
 
-                    <div className="md:col-span-2">
-                      {renderInput({ label: "Person of Significant Control (PSC)", name: "personOfSignificantControl", value: formData.personOfSignificantControl, placeholder: "e.g. Arthur Pendragon (85% Ownership)", icon: User })}
-                    </div>
+                    {/* PSC is a Companies House filing concept. A sole trader has
+                        no ownership structure to declare — they are it. */}
+                    {!isSoleTrader && (
+                      <div className="md:col-span-2">
+                        {renderInput({ label: "Person of Significant Control (PSC)", name: "personOfSignificantControl", value: formData.personOfSignificantControl, placeholder: "e.g. Arthur Pendragon (85% Ownership)", icon: User })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Director ID Upload */}
@@ -832,8 +878,8 @@ export function KycOverlayForm({ onSkip }: { onSkip?: () => void }) {
                       Supporting Document Upload
                     </p>
                     <FileUploadField
-                      label="Director ID / Passport Photo"
-                      hint="Passport, driver's licence, or national ID · JPG, PNG, PDF · Max 10MB"
+                      label={isSoleTrader ? "Driving License or Passport" : "Director ID / Passport Photo"}
+                      hint="Passport, driving licence, or national ID · JPG, PNG, PDF · Max 10MB"
                       fieldName="directorIdProof"
                       value={fileUrls.directorIdProof}
                       onUpload={handleFileUpload}
@@ -854,17 +900,83 @@ export function KycOverlayForm({ onSkip }: { onSkip?: () => void }) {
                     Step 2: Registrations &amp; Business Address
                   </h3>
 
+                  {/* Business type decides the whole step. Radios rather than
+                      styled divs so arrow keys move between them and screen
+                      readers announce the group and the current selection. */}
+                  <fieldset className="space-y-3">
+                    <legend className="text-xs font-extrabold uppercase text-primary tracking-widest mb-3 flex items-center gap-1.5">
+                      <Building2 size={11} />
+                      Business Type
+                    </legend>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {BUSINESS_TYPE_OPTIONS.map((opt) => {
+                        const selected = formData.businessType === opt.value;
+                        return (
+                          <label
+                            key={opt.value}
+                            className={`flex items-start gap-3 rounded-xl border p-4 cursor-pointer transition-colors ${selected
+                              ? "border-primary bg-primary/5"
+                              : "border-[var(--border-default)] bg-[var(--bg-input)] hover:border-primary/40"}`}
+                          >
+                            <input
+                              type="radio"
+                              name="businessType"
+                              value={opt.value}
+                              checked={selected}
+                              disabled={submitting}
+                              onChange={() => setFormData((f) => ({ ...f, businessType: opt.value }))}
+                              className="mt-0.5 shrink-0 accent-primary"
+                            />
+                            <span>
+                              <span className="block text-sm font-extrabold text-[var(--text-primary)]">
+                                {opt.label}
+                              </span>
+                              <span className="block text-[11px] text-[var(--text-muted)] mt-0.5">
+                                {opt.hint}
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      {isSoleTrader
+                        ? "Sole traders have no VAT number and no Companies House record, so we verify you with photo ID and proof of address instead."
+                        : "We will ask for your VAT number and Companies House details."}
+                    </p>
+                  </fieldset>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {renderInput({ label: "VAT Registration Number", name: "vatNumber", value: formData.vatNumber, placeholder: "e.g. GB 123456789", icon: FileSpreadsheet })}
-                    {renderInput({ label: "Company House Registration Number", name: "companyRegistrationNumber", value: formData.companyRegistrationNumber, placeholder: "e.g. 12345678", icon: FileSpreadsheet })}
-                    {renderInput({ label: "Corporate Website URL", name: "businessWebsite", value: formData.businessWebsite, placeholder: "e.g. https://www.mydealership.co.uk", icon: Globe })}
+                    {/* Limited-company registrations. A sole trader has neither,
+                        so these are removed rather than shown and left blank. */}
+                    {!isSoleTrader && renderInput({ label: "VAT Registration Number", name: "vatNumber", value: formData.vatNumber, placeholder: "e.g. GB 123456789", icon: FileSpreadsheet })}
+                    {!isSoleTrader && renderInput({ label: "Company House Registration Number", name: "companyRegistrationNumber", value: formData.companyRegistrationNumber, placeholder: "e.g. 12345678", icon: FileSpreadsheet })}
+                    {renderInput({
+                      label: isSoleTrader ? "Business Website URL (Optional)" : "Corporate Website URL",
+                      name: "businessWebsite",
+                      value: formData.businessWebsite,
+                      placeholder: "e.g. https://www.mydealership.co.uk",
+                      icon: Globe,
+                    })}
                     {renderInput({ label: "Google Reviews Listing Link (Optional)", name: "googleReviewsLink", value: formData.googleReviewsLink, placeholder: "e.g. https://g.page/r/...", icon: Globe })}
 
                     <div className="md:col-span-2">
-                      {renderTextarea({ label: "Registered Business Address", name: "businessRegisteredAddress", value: formData.businessRegisteredAddress, placeholder: "e.g. 12 Guildhall St, Folkestone, Kent, CT20 1EE", icon: MapPin })}
+                      {renderTextarea({
+                        label: isSoleTrader ? "Business Address" : "Registered Business Address",
+                        name: "businessRegisteredAddress",
+                        value: formData.businessRegisteredAddress,
+                        placeholder: "e.g. 12 Guildhall St, Folkestone, Kent, CT20 1EE",
+                        icon: MapPin,
+                      })}
                     </div>
                     <div className="md:col-span-2">
-                      {renderTextarea({ label: "Trading Address (If different from Registered Address)", name: "tradingAddress", value: formData.tradingAddress, placeholder: "Leave empty if identical to registered address", icon: MapPin })}
+                      {renderTextarea({
+                        label: isSoleTrader ? "Trading Address (If different from the address above)" : "Trading Address (If different from Registered Address)",
+                        name: "tradingAddress",
+                        value: formData.tradingAddress,
+                        placeholder: "Leave empty if identical to registered address",
+                        icon: MapPin,
+                      })}
                     </div>
                   </div>
 
@@ -875,30 +987,66 @@ export function KycOverlayForm({ onSkip }: { onSkip?: () => void }) {
                       Supporting Document Uploads
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FileUploadField
-                        label="VAT Certificate / Registration Proof"
-                        hint="HMRC VAT registration letter or certificate · JPG, PNG, PDF · Max 10MB"
-                        fieldName="vatProof"
-                        value={fileUrls.vatProof}
-                        onUpload={handleFileUpload}
-                        onClear={handleFileClear}
-                        isApproved={isFieldApproved("vatProof")}
-                        rejectionNote={getFieldRejectionNote("vatProof")}
-                        isSubmitting={submitting}
-                        icon={FileCheck}
-                      />
-                      <FileUploadField
-                        label="Company House Certificate"
-                        hint="Certificate of Incorporation or Companies House printout · JPG, PNG, PDF · Max 10MB"
-                        fieldName="companyRegistrationProof"
-                        value={fileUrls.companyRegistrationProof}
-                        onUpload={handleFileUpload}
-                        onClear={handleFileClear}
-                        isApproved={isFieldApproved("companyRegistrationProof")}
-                        rejectionNote={getFieldRejectionNote("companyRegistrationProof")}
-                        isSubmitting={submitting}
-                        icon={FileCheck}
-                      />
+                      {isSoleTrader ? (
+                        <>
+                          {/* Same storage field as the limited-company flow uses in
+                              Step 1 — a sole trader IS the director, so there is one
+                              photo ID either way. It is surfaced again here because
+                              for them it is the primary evidence, not a supporting
+                              document, and Step 2 is where verification is decided. */}
+                          <FileUploadField
+                            label="Driving License or Passport"
+                            hint="Photo ID for the business owner · JPG, PNG, PDF · Max 10MB"
+                            fieldName="directorIdProof"
+                            value={fileUrls.directorIdProof}
+                            onUpload={handleFileUpload}
+                            onClear={handleFileClear}
+                            isApproved={isFieldApproved("directorIdProof")}
+                            rejectionNote={getFieldRejectionNote("directorIdProof")}
+                            isSubmitting={submitting}
+                            icon={IdCard}
+                          />
+                          <FileUploadField
+                            label="Proof of Address"
+                            hint="Utility bill, council tax or bank statement from the last 3 months · JPG, PNG, PDF · Max 10MB"
+                            fieldName="proofOfAddress"
+                            value={fileUrls.proofOfAddress}
+                            onUpload={handleFileUpload}
+                            onClear={handleFileClear}
+                            isApproved={isFieldApproved("proofOfAddress")}
+                            rejectionNote={getFieldRejectionNote("proofOfAddress")}
+                            isSubmitting={submitting}
+                            icon={FileCheck}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <FileUploadField
+                            label="VAT Certificate / Registration Proof"
+                            hint="HMRC VAT registration letter or certificate · JPG, PNG, PDF · Max 10MB"
+                            fieldName="vatProof"
+                            value={fileUrls.vatProof}
+                            onUpload={handleFileUpload}
+                            onClear={handleFileClear}
+                            isApproved={isFieldApproved("vatProof")}
+                            rejectionNote={getFieldRejectionNote("vatProof")}
+                            isSubmitting={submitting}
+                            icon={FileCheck}
+                          />
+                          <FileUploadField
+                            label="Company House Certificate"
+                            hint="Certificate of Incorporation or Companies House printout · JPG, PNG, PDF · Max 10MB"
+                            fieldName="companyRegistrationProof"
+                            value={fileUrls.companyRegistrationProof}
+                            onUpload={handleFileUpload}
+                            onClear={handleFileClear}
+                            isApproved={isFieldApproved("companyRegistrationProof")}
+                            rejectionNote={getFieldRejectionNote("companyRegistrationProof")}
+                            isSubmitting={submitting}
+                            icon={FileCheck}
+                          />
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

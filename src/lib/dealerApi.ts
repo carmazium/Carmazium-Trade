@@ -1,8 +1,16 @@
 import { apiClient } from './apiClient';
 
+/**
+ * How the dealer's business is constituted. Decides which evidence the KYC form
+ * asks for — a sole trader has no VAT number and no Companies House record, so
+ * demanding either would lock them out of dealer verification entirely.
+ */
+export type BusinessType = 'PRIVATE_LIMITED' | 'SOLE_PROPRIETORSHIP';
+
 export interface DealerKycData {
   id?: string;
   dealerProfileId?: string;
+  businessType: BusinessType;
   companyHouseName: string;
   representativeName: string;
   representativePosition: string;
@@ -13,6 +21,8 @@ export interface DealerKycData {
   personOfSignificantControl: string;
   directorName: string;
   directorIdProof?: string;
+  /** Sole traders only — utility bill or bank statement. */
+  proofOfAddress?: string;
   businessWebsite: string;
   businessRegisteredAddress: string;
   tradingAddress?: string;

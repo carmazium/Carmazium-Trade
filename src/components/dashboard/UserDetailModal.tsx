@@ -44,6 +44,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 
 const KYC_DOC_FIELDS: { key: string; label: string }[] = [
     { key: "vatProof", label: "VAT Proof" },
+    { key: "proofOfAddress", label: "Proof of Address" },
     { key: "companyRegistrationProof", label: "Company Registration Cert" },
     { key: "directorIdProof", label: "Director ID / Passport" },
     { key: "paymentScreenshot", label: "Payment Screenshot" },

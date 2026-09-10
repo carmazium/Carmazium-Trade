@@ -133,6 +133,7 @@ export class DealersService {
         const alreadyStripeVerified = (profile.kyc as any)?.stripeChargedAt != null;
 
         const fieldsList = [
+            'businessType',
             'companyHouseName',
             'representativeName',
             'representativePosition',
@@ -143,6 +144,7 @@ export class DealersService {
             'personOfSignificantControl',
             'directorName',
             'directorIdProof',
+            'proofOfAddress',
             'businessWebsite',
             'businessRegisteredAddress',
             'tradingAddress',
@@ -155,6 +157,15 @@ export class DealersService {
         // We must never write null to these — fall back to existing DB value instead.
         // NOTE: paymentReference is now String? (nullable) — removed from required set
         // so Stripe-flow submissions that omit it don't crash.
+        // Non-nullable in the DealerKyc schema — never write null to these, fall
+        // back to the existing DB value (or '') instead.
+        //
+        // vatNumber, companyRegistrationNumber, personOfSignificantControl and
+        // businessWebsite stay in this set even though sole traders leave them
+        // blank: the columns are still NOT NULL, so a sole trader's submission
+        // writes '' rather than null. Which of them are actually *demanded* is
+        // decided by businessType, in the client form and in admin review — not
+        // by nullability here.
         const requiredFields = new Set([
             'companyHouseName',
             'representativeName',
@@ -166,6 +177,10 @@ export class DealersService {
             'businessWebsite',
             'businessRegisteredAddress',
         ]);
+
+        // businessType is an enum column with a default — '' is not a legal
+        // value for it, so it must never fall into the ''-fallback path above.
+        const businessType = dto.businessType ?? 'PRIVATE_LIMITED';
 
         let documentStatuses: Record<string, any> = {};
         const updatedFields: Record<string, any> = {};
@@ -187,9 +202,11 @@ export class DealersService {
                     // Update with incoming value.
                     // For required (non-nullable) fields, fall back to the existing DB
                     // value if the DTO provides null/undefined to prevent Prisma crashes.
-                    const value = (incomingValue !== null && incomingValue !== undefined)
-                        ? incomingValue
-                        : (requiredFields.has(field) ? (existingValue ?? '') : null);
+                    const value = field === 'businessType'
+                        ? businessType
+                        : (incomingValue !== null && incomingValue !== undefined)
+                            ? incomingValue
+                            : (requiredFields.has(field) ? (existingValue ?? '') : null);
 
                     updatedFields[field] = value;
                     documentStatuses[field] = { status: 'PENDING', note: '' };
@@ -228,9 +245,11 @@ export class DealersService {
             for (const field of fieldsList) {
                 const incomingValue = (dto as any)[field];
                 // For required fields default to '' rather than null to prevent DB errors
-                updatedFields[field] = (incomingValue !== null && incomingValue !== undefined)
-                    ? incomingValue
-                    : (requiredFields.has(field) ? '' : null);
+                updatedFields[field] = field === 'businessType'
+                    ? businessType
+                    : (incomingValue !== null && incomingValue !== undefined)
+                        ? incomingValue
+                        : (requiredFields.has(field) ? '' : null);
 
                 documentStatuses[field] = { status: 'PENDING', note: '' };
             }

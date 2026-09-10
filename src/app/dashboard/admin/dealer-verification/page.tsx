@@ -32,17 +32,22 @@ import { Button } from "@/components/ui/Button";
 
 // ─── KYC Field Definitions ────────────────────────────────────────────────────
 
+// `ltdOnly` marks evidence that exists only for a limited company. A sole
+// trader has no VAT registration and no Companies House record, so those rows
+// are hidden when reviewing one — left visible they would read as four missing
+// documents and get the applicant rejected for paperwork they cannot produce.
 const KYC_FIELDS = [
   { id: "companyHouseName",           label: "Company House Registered Name",         category: "Corporate Details" },
   { id: "directorName",               label: "Lead Director Full Name",               category: "Corporate Details" },
-  { id: "directorIdProof",            label: "Director ID / Passport",                category: "Corporate Details",       isProof: true },
+  { id: "directorIdProof",            label: "Photo ID (Driving Licence / Passport)", category: "Corporate Details",       isProof: true },
+  { id: "proofOfAddress",             label: "Proof of Address",                      category: "Corporate Details",       isProof: true, soleTraderOnly: true },
   { id: "representativeName",         label: "Representative Full Name",              category: "Corporate Details" },
   { id: "representativePosition",     label: "Representative Job Title",              category: "Corporate Details" },
-  { id: "personOfSignificantControl", label: "Person of Significant Control (PSC)",  category: "Corporate Details" },
-  { id: "vatNumber",                  label: "VAT Registration Number",               category: "Commercial & Contact" },
-  { id: "vatProof",                   label: "VAT Certificate / Registration Proof",  category: "Commercial & Contact",    isProof: true },
-  { id: "companyRegistrationNumber",  label: "Company House Registration Number",     category: "Commercial & Contact" },
-  { id: "companyRegistrationProof",   label: "Company House Certificate",             category: "Commercial & Contact",    isProof: true },
+  { id: "personOfSignificantControl", label: "Person of Significant Control (PSC)",  category: "Corporate Details",       ltdOnly: true },
+  { id: "vatNumber",                  label: "VAT Registration Number",               category: "Commercial & Contact",    ltdOnly: true },
+  { id: "vatProof",                   label: "VAT Certificate / Registration Proof",  category: "Commercial & Contact",    isProof: true, ltdOnly: true },
+  { id: "companyRegistrationNumber",  label: "Company House Registration Number",     category: "Commercial & Contact",    ltdOnly: true },
+  { id: "companyRegistrationProof",   label: "Company House Certificate",             category: "Commercial & Contact",    isProof: true, ltdOnly: true },
   { id: "businessWebsite",            label: "Corporate Website URL",                 category: "Commercial & Contact",    isLink: true },
   { id: "googleReviewsLink",          label: "Google Reviews Link",                   category: "Commercial & Contact",    isLink: true },
   { id: "businessRegisteredAddress",  label: "Registered Business Address",           category: "Addresses",               isTextarea: true },
@@ -50,6 +55,19 @@ const KYC_FIELDS = [
   { id: "paymentReference",           label: "Unique Bank Payment Reference Code",   category: "Payment Verification" },
   { id: "paymentScreenshot",          label: "Bank Transfer Receipt / Screenshot",   category: "Payment Verification",    isProof: true },
 ];
+
+/**
+ * The fields that apply to one applicant. Records predating the business-type
+ * toggle have no `businessType` and are all limited companies, so an absent
+ * value must read as PRIVATE_LIMITED rather than as a sole trader — otherwise
+ * every historic record would silently lose its VAT and Companies House rows.
+ */
+function fieldsFor(kyc: any) {
+  const soleTrader = kyc?.businessType === "SOLE_PROPRIETORSHIP";
+  return KYC_FIELDS.filter((f: any) =>
+    soleTrader ? !f.ltdOnly : !f.soleTraderOnly,
+  );
+}
 
 // ─── Lightbox Component ───────────────────────────────────────────────────────
 
@@ -235,7 +253,7 @@ export default function AdminDealerVerificationPage() {
       setExpandedId(dealerKyc.id);
       const initialDecisions: Record<string, any> = {};
       const existingStatuses = dealerKyc.documentStatuses || {};
-      KYC_FIELDS.forEach((field) => {
+      fieldsFor(dealerKyc).forEach((field) => {
         const item = existingStatuses[field.id];
 
         // Auto-approve payment fields for Stripe-verified records
@@ -501,10 +519,32 @@ export default function AdminDealerVerificationPage() {
       "Payment Verification": <Receipt size={12} className="text-primary" />,
     };
 
+    const soleTrader = item?.businessType === "SOLE_PROPRIETORSHIP";
+
     return (
       <div className="space-y-6 text-left">
+        {/* Says which ruleset is in force, so a reviewer never reads a hidden
+            VAT row as a missing one. */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">
+            Business type
+          </span>
+          <span
+            className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border ${soleTrader
+              ? "bg-amber-500/10 border-amber-500/25 text-amber-500"
+              : "bg-sky-500/10 border-sky-500/25 text-sky-500"}`}
+          >
+            {soleTrader ? "Sole Proprietorship" : "Private Limited"}
+          </span>
+          {soleTrader && (
+            <span className="text-[11px] text-[var(--text-muted)]">
+              No VAT or Companies House record — verified by ID and address.
+            </span>
+          )}
+        </div>
+
         {categories.map((cat) => {
-          const catFields = KYC_FIELDS.filter((f) => f.category === cat);
+          const catFields = fieldsFor(item).filter((f) => f.category === cat);
 
           // Stripe-verified records: show auto-approved badge for Payment Verification, skip manual fields
           if (cat === 'Payment Verification' && item.stripePaymentIntentId) {
