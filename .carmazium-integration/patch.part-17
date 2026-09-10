@@ -1,0 +1,233 @@
+-                    <div className="absolute inset-0 bg-slate-900/30 group-hover:bg-slate-900/10 transition-colors" />
+-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-2">
+-                        <div className="bg-white/10 backdrop-blur-md p-4 rounded-full text-white shadow-neon border border-white/20">
+-                            <Lock size={28} />
++                    <div className="absolute inset-0 bg-slate-950/20" />
++                    <div className="absolute inset-0 flex items-center justify-center">
++                        <div className="bg-slate-950/70 backdrop-blur-md px-4 py-2 rounded-full text-white border border-white/20 flex items-center gap-2">
++                            <Shield size={18} className="text-blue-300" />
++                            <span className="text-xs font-black uppercase tracking-wider">Required Check</span>
+                         </div>
+-                        <span className="text-white font-bold tracking-wider text-sm drop-shadow-md">CLICK TO UNLOCK</span>
+                     </div>
+                 </div>
+-
+-                {/* Right side: Content */}
+                 <div className="p-6 md:p-8 flex-1 flex flex-col justify-center text-center md:text-left">
+                     <div className="flex items-center justify-center md:justify-start gap-3 mb-3">
+-                        <Shield className="text-blue-400 shrink-0" size={32} />
+-                        <h3 className="text-[var(--text-primary)] font-bold text-xl">Official HPI Vehicle Check</h3>
++                        <BadgeCheck className="text-blue-400 shrink-0" size={30} />
++                        <h3 className="text-[var(--text-primary)] font-bold text-xl">Vehicle History Check Included</h3>
+                     </div>
+-                    
+-                    <p className="text-[var(--text-secondary)] mb-6 leading-relaxed">
+-                        We've found an official HPI record for this vehicle. Unlocking the full report gives you a <strong className="text-[var(--text-primary)]">Premium Verification Badge</strong> on your listing.
++                    <p className="text-[var(--text-secondary)] leading-relaxed">
++                        Every CarMazium listing is reviewed with a vehicle-history/HPI check before it goes live. There is no separate HPI add-on required from you during listing; our admin review must complete the check before approval.
+                     </p>
+-                    
+-                    <div className="flex flex-col items-center md:items-start gap-3 mt-auto">
+-                        <Button type="button" onClick={onUnlock} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold px-8 py-6 text-base shadow-neon shrink-0 w-full sm:w-auto border-0">
+-                            Unlock Full HPI Report
+-                        </Button>
+-                        <p className="text-xs text-[var(--text-muted)] italic flex items-center gap-1.5">
+-                            <BadgeCheck size={14} className="text-emerald-400" />
+-                            *Proven to help cars sell up to 2x faster!
+-                        </p>
+-                    </div>
+                 </div>
+             </div>
+         </div>
+@@ -689,8 +660,8 @@ export function ListingWizard({ isDashboard = false }: { isDashboard?: boolean }
+     const trackListingSubmitted = (
+         payload: CreateListingRequest,
+         listingId: string,
+-        // 'published' is the admin path — no fee and no review queue, so the
+-        // listing goes straight to ACTIVE (see ListingsService.publishListing).
++        // 'published' remains for analytics compatibility with older events;
++        // current submissions use the mandatory review path before going ACTIVE.
+         outcome: 'pending_review' | 'awaiting_payment' | 'published',
+     ) => {
+         const listing_type = listingTypeLabel(payload.listingType)
+@@ -2685,12 +2656,12 @@ export function ListingWizard({ isDashboard = false }: { isDashboard?: boolean }
+                                             <ul className="space-y-1.5 text-xs text-[var(--text-muted)]">
+                                                 <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-emerald-400" /> Open bidding</li>
+                                                 <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-emerald-400" /> 24-hour auction</li>
+-                                                <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-emerald-400" /> Anyone can bid</li>
++                                                <li className="flex items-center gap-1.5"><CheckCircle size={12} className="text-emerald-400" /> Verified dealers bid</li>
+                                                 <li className="flex items-center gap-1.5 text-[var(--text-secondary)]"><X size={12} /> No trust badges</li>
+                                             </ul>
+                                             <div className="flex items-start gap-1.5 mt-3 pt-3 border-t border-[var(--border-default)]">
+                                                 <Lock size={10} className="text-amber-500/70 shrink-0 mt-0.5" />
+-                                                <p className="text-[10px] text-amber-500/70 leading-tight">Only verified dealers can list for auction</p>
++                                                <p className="text-[10px] text-amber-500/70 leading-tight">Private sellers and traders can list; bidding is dealer-only</p>
+                                             </div>
+                                         </button>
+                                     ) : (
+ diff --git a/src/lib/adminApi.ts b/src/lib/adminApi.ts
+index 35ff1a4..6c74086 100644
+--- a/src/lib/adminApi.ts
++++ b/src/lib/adminApi.ts
+@@ -76,6 +76,14 @@ export async function assignAuctionWinner(auctionId: string, dealerId: string) {
+   return result;
+ }
+ 
++export async function refundAuctionBuyerFee(auctionId: string, reason?: string) {
++  const result = await apiClient<any>(`/admin/auctions/${auctionId}/refund-buyer-fee`, {
++    method: 'POST',
++    body: JSON.stringify({ reason }),
++  });
++  return result;
++}
++
+ export async function getAdminTransactions(page = 1, limit = 20) {
+   const result = await apiClient<any>(`/admin/transactions?page=${page}&limit=${limit}`);
+   return result;
+ diff --git a/src/lib/auctionApi.ts b/src/lib/auctionApi.ts
+index 249586a..6587233 100644
+--- a/src/lib/auctionApi.ts
++++ b/src/lib/auctionApi.ts
+@@ -135,7 +135,7 @@ export interface Auction {
+ 
+ export interface CreateAuctionRequest {
+     listingId: string;
+-    startTime: string;       // ISO datetime — endTime is always startTime + 6h server-side
++    startTime: string;       // ISO datetime — endTime is always startTime + 24h server-side
+     reservePrice: number;
+     startingBid: number;
+     minIncrement?: number;   // default 100
+ diff --git a/src/lib/listingApi.ts b/src/lib/listingApi.ts
+index 68c1f3c..b363000 100644
+--- a/src/lib/listingApi.ts
++++ b/src/lib/listingApi.ts
+@@ -202,7 +202,7 @@ export interface Listing {
+     deliveryPricePerMile?: number | string | null
+     deliveryMaxMiles?: number | null
+     sellerId: string | null
+-    // Present only when the seller actually requested/paid for an HPI report
++    // Mandatory listing HPI report once it has been seeded by the review workflow
+     // — null/undefined means none exists yet, not that one is empty.
+     hpiReport?: { status: 'PENDING' | 'COMPLETED'; isClear: boolean; purchasedAt: string } | null
+     isFeatured: boolean
+ diff --git a/src/lib/paymentApi.ts b/src/lib/paymentApi.ts
+index a410234..e39d301 100644
+--- a/src/lib/paymentApi.ts
++++ b/src/lib/paymentApi.ts
+@@ -122,3 +122,26 @@ export async function getPaymentHistory(): Promise<PaymentTransaction[]> {
+     })
+     return data.data
+ }
++
++/**
++ * Start payment for an accepted TradeXchange service quote. The backend
++ * re-derives the amount from the locked transaction row; no client amount is
++ * trusted. Stripe's webhook is the only authority that marks the job paid.
++ */
++export async function createTradeXchangeCheckout(jobId: string): Promise<CheckoutSessionResult> {
++    const data = await apiClient<{ data: CheckoutSessionResult }>('/payments/tradexchange-checkout', {
++        method: 'POST',
++        body: JSON.stringify({ jobId }),
++    })
++    return data.data
++}
++
++
++/** Webhook-delay fallback for a completed TradeXchange Stripe checkout. */
++export async function applyTradeXchangePayment(sessionId: string): Promise<{ applied: boolean; paymentStatus?: string }> {
++    const data = await apiClient<{ data: { applied: boolean; paymentStatus?: string } }>('/payments/apply-tradexchange-payment', {
++        method: 'POST',
++        body: JSON.stringify({ sessionId }),
++    })
++    return data.data
++}
+ diff --git a/src/lib/tradexchangeApi.ts b/src/lib/tradexchangeApi.ts
+index 35b2fcf..876fca4 100644
+--- a/src/lib/tradexchangeApi.ts
++++ b/src/lib/tradexchangeApi.ts
+@@ -1,11 +1,13 @@
+ import { supabase } from '@/lib/supabase'
+ 
+ export type TradeServiceCategory = 'delivery' | 'inspection' | 'finance' | 'warranty'
+-export type TradeOfferStatus = 'submitted' | 'withdrawn' | 'accepted' | 'declined' | 'expired'
++export type JobServiceCategory = 'delivery' | 'inspection'
++export type LeadServiceCategory = 'finance' | 'warranty'
++export type TradeOfferStatus = 'submitted' | 'withdrawn' | 'accepted' | 'declined' | 'rejected' | 'expired'
+ 
+ export interface ProviderJobFeedRow {
+     id: string
+-    category: TradeServiceCategory
++    category: JobServiceCategory
+     title: string
+     description: string
+     collection_location?: string | null
+@@ -21,6 +23,24 @@ export interface ProviderJobFeedRow {
+     my_offer_status?: TradeOfferStatus | null
+ }
+ 
++export interface MyServiceJob {
++    id: string
++    category: JobServiceCategory
++    title: string
++    description: string
++    status: string
++    collection_location?: string | null
++    delivery_location?: string | null
++    preferred_date?: string | null
++    budget_pence?: number | null
++    vehicle_label?: string | null
++    agreed_amount_pence?: number | null
++    platform_fee_pence?: number | null
++    provider_amount_pence?: number | null
++    provider_dealer_profile_id?: string | null
++    created_at: string
++}
++
+ export interface MyServiceOffer {
+     id: string
+     job_id: string
+@@ -31,12 +51,36 @@ export interface MyServiceOffer {
+     available_from?: string | null
+     service_jobs?: {
+         id: string
+-        category: TradeServiceCategory
++        category: JobServiceCategory
+         title: string
+         status?: string | null
+     } | null
+ }
+ 
++export interface ServiceOfferBoardRow {
++    offer_id: string
++    business_id: string
++    business_name: string
++    business_slug?: string | null
++    verification_status?: string | null
++    amount_pence: number
++    message?: string | null
++    available_from?: string | null
++    status: TradeOfferStatus
++    created_at: string
++    rating?: number | null
++    review_count?: number | null
++    badges?: string[] | null
++    about?: string | null
++    public_website?: string | null
++}
++
++export interface ServiceJobContact {
++    contact_name?: string | null
++    contact_phone?: string | null
++    contact_notes?: string | null
++}
++
+ export const TRADE_PLATFORM_FEE_BPS = 900
+ 
+ export const tradeServiceCategoryLabel: Record<TradeServiceCategory, string> = {
+@@ -73,6 +117,16 @@ function tradeError(error: { message?: string } | null, fallback: string): Error
+     return new Error(error?.message || fallback)
+ }
+ 
++function fromDbCategory(serviceType: string | null | undefined): JobServiceCategory {
++    return serviceType === 'vehicle_inspection' ? 'inspection' : 'delivery'
++}
