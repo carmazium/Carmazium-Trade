@@ -1,0 +1,116 @@
++                                    ) : (
++                                        <>
++                                            <div className="space-y-2"><label className="text-sm font-bold text-[var(--text-secondary)]">Job Title</label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder={category === 'delivery' ? 'e.g. Transport needed for Mercedes C-Class' : 'e.g. Pre-purchase inspection for Audi A4'} /></div>
++                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6"><div className="space-y-2"><label className="text-sm font-bold text-[var(--text-secondary)]">Vehicle</label><Input value={vehicleLabel} onChange={e => setVehicleLabel(e.target.value)} placeholder="e.g. 2020 Mercedes C-Class" /></div><div className="space-y-2"><label className="text-sm font-bold text-[var(--text-secondary)]">Budget Estimate</label><Input value={budget} onChange={e => setBudget(e.target.value)} placeholder="e.g. £300" /></div></div>
++                                            <div className={`grid grid-cols-1 ${category === 'delivery' ? 'sm:grid-cols-2' : ''} gap-6`}><div className="space-y-2"><label className="text-sm font-bold text-[var(--text-secondary)]">{category === 'delivery' ? 'Collection Location' : 'Inspection Location'}</label><Input value={collection} onChange={e => setCollection(e.target.value)} placeholder="Postcode or town" /></div>{category === 'delivery' && <div className="space-y-2"><label className="text-sm font-bold text-[var(--text-secondary)]">Delivery Location</label><Input value={delivery} onChange={e => setDelivery(e.target.value)} placeholder="Postcode or town" /></div>}</div>
++                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6"><div className="space-y-2"><label className="text-sm font-bold text-[var(--text-secondary)]">Preferred Date</label><Input type="date" value={preferredDate} onChange={e => setPreferredDate(e.target.value)} /></div><div className="space-y-2"><label className="text-sm font-bold text-[var(--text-secondary)]">Contact Phone</label><Input value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder="Shared only after booking" /></div></div>
++                                            <div className="space-y-2"><label className="text-sm font-bold text-[var(--text-secondary)]">Description</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full min-h-[120px] rounded-md bg-[var(--bg-input)] border border-[var(--border-default)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 custom-scrollbar resize-none" placeholder="Describe the vehicle and any specific requirements…" /></div>
++                                        </>
++                                    )}
+ 
+-                                    <Button className="w-full py-6 text-lg bg-emerald-600 hover:bg-emerald-700">Post Job Now</Button>
++                                    <Button type="submit" disabled={busy === 'post'} className="w-full py-6 text-lg bg-emerald-600 hover:bg-emerald-700">{busy === 'post' ? <><Loader2 size={18} className="mr-2 animate-spin" />Submitting…</> : user ? (isLead ? 'Send Enquiry Securely' : 'Post Job Now') : 'Sign In to Continue'}</Button>
+                                 </form>
+                             </div>
+                         </div>
+@@ -207,17 +449,9 @@ export default function ServicesPage() {
+             </div>
+ 
+             <section className="container mx-auto px-5">
+-                {/* Join as Pro CTA - Always visible footer for this section */}
+                 <div className="glass-strong p-12 rounded-3xl text-center relative overflow-hidden mt-20">
+                     <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -z-0 translate-x-1/2 -translate-y-1/2" />
+-                    <div className="relative z-10">
+-                        <h2 className="text-3xl md:text-4xl font-bold font-heading mb-6">Are you an Automotive Professional?</h2>
+-                        <p className="text-xl text-[var(--text-secondary)] max-w-2xl mx-auto mb-8">Join CarMazium's network of verified providers. Connect with thousands of car owners, get paid securely, and grow your business.</p>
+-                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+-                            <Button size="lg" className="shadow-neon px-8">Join as a Provider</Button>
+-                            <Button variant="outline" size="lg" className="px-8">How it Works</Button>
+-                        </div>
+-                    </div>
++                    <div className="relative z-10"><h2 className="text-3xl md:text-4xl font-bold font-heading mb-6">Are you an Automotive Professional?</h2><p className="text-xl text-[var(--text-secondary)] max-w-2xl mx-auto mb-8">Join CarMazium's verified provider network. Approved delivery and inspection businesses compete for jobs, while approved finance and warranty providers receive consented enquiries.</p><div className="flex flex-col sm:flex-row gap-4 justify-center"><Button asChild size="lg" className="shadow-neon px-8"><Link href="/dashboard/dealer">Join as a Provider</Link></Button><Button asChild variant="outline" size="lg" className="px-8"><Link href="/auctions">How Trade Exchange Works</Link></Button></div></div>
+                 </div>
+             </section>
+         </div>
+ diff --git a/src/app/terms/page.tsx b/src/app/terms/page.tsx
+index 0b02c36..8d1fcae 100644
+--- a/src/app/terms/page.tsx
++++ b/src/app/terms/page.tsx
+@@ -85,7 +85,7 @@ const SECTIONS: LegalSection[] = [
+             p("CarMazium may provide:"),
+             ul([
+                 "free Auction Listings for eligible Sellers",
+-                "24-hour or other timed Auctions",
++                "24-hour Auctions",
+                 "Dealer bidding",
+                 "£1 Retail Listings",
+                 "vehicle search and discovery",
+@@ -297,6 +297,7 @@ const SECTIONS: LegalSection[] = [
+             p("Fee. Where a Vehicle is successfully purchased through a CarMazium Auction, the Successful Auction Buyer must pay CarMazium the applicable Auction Buyer Fee. The current fee is £125 per successfully purchased Auction Vehicle, unless another amount is clearly displayed before the Dealer bids."),
+             p("Separate from Purchase Price. The £125 fee is payable to CarMazium. The Vehicle Purchase Price is payable directly to the Seller. These are completely separate payments."),
+             p("Retail exemption. The £125 Auction Buyer Fee does not apply to Vehicles purchased through Retail Listings."),
++            p("Failed-sale refund. If CarMazium verifies before Handover that the Auction Vehicle materially differs from its listing because of an undisclosed fault or other material undisclosed condition, CarMazium may cancel the failed Auction sale and refund the Successful Auction Buyer’s £125 Auction Buyer Fee in full. A rejected or unclear Handover Evidence submission by itself is not a failed-sale event and does not trigger a Buyer Fee refund."),
+             p("VAT. Where VAT is legally chargeable on a CarMazium fee, the Platform or invoice will state the applicable VAT treatment."),
+         ],
+     },
+@@ -514,6 +515,8 @@ const SECTIONS: LegalSection[] = [
+         num: 44,
+         title: "Vehicle History Data",
+         blocks: [
++            p("Mandatory pre-publication review. Each Listing must complete CarMazium's vehicle-history/HPI review before it can be approved and made live. This review is part of the Listing review workflow and is not a separate Seller HPI add-on charge."),
++            p("Auction reuse and Retail freshness. Where the same Vehicle is relisted through an Auction, CarMazium may reuse a previously completed report where it remains appropriate, together with updated Seller notes or review information. A Retail relist requires a fresh vehicle-history review before republication."),
+             p("CarMazium may display information obtained from third-party providers, such as MOT information, Vehicle specification, finance indicators, valuation data, insurance category, and history information. Third-party data may contain errors or delays. CarMazium does not warrant that third-party databases are complete or error-free."),
+         ],
+     },
+@@ -929,7 +932,7 @@ export default function TermsPage() {
+                     <p className="text-[var(--text-muted)] text-lg max-w-2xl mx-auto">
+                         These Terms govern your access to and use of the CarMazium website, online marketplace, auction facilities, retail listings, dealer services, Mazium AI features and associated services.
+                     </p>
+-                    <p className="text-[var(--text-muted)] text-sm mt-3">Last Updated: 13 August 2026</p>
++                    <p className="text-[var(--text-muted)] text-sm mt-3">Last Updated: 10 September 2026</p>
+                 </div>
+ 
+                 {/* Company card */}
+ diff --git a/src/components/listing/ListingWizard.tsx b/src/components/listing/ListingWizard.tsx
+index 31df897..7d52d70 100644
+--- a/src/components/listing/ListingWizard.tsx
++++ b/src/components/listing/ListingWizard.tsx
+@@ -220,64 +220,35 @@ function InfoTooltip({ text }: { text: string }) {
+     )
+ }
+ 
+-// ─── HPI Bait Section ─────────────────────────────────────────────────────────
+-
+-function HpiBaitSection({ isUnlocked, onUnlock }: { isUnlocked: boolean, onUnlock: () => void }) {
+-    if (isUnlocked) {
+-        // Payment succeeded, but the report itself is prepared by our team
+-        // after review — nothing has actually been checked yet at this point,
+-        // so this must not claim a clean result before one exists.
+-        return (
+-            <div className="mt-8 relative overflow-hidden rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 flex flex-col items-center text-center">
+-                 <div className="flex items-center gap-3">
+-                     <Clock className="text-blue-400" size={20} />
+-                     <h3 className="text-base font-bold text-blue-300">HPI Report Requested</h3>
+-                 </div>
+-                 <p className="text-xs text-[var(--text-muted)] mt-1">Our team will prepare your vehicle history report during review.</p>
+-            </div>
+-        )
+-    }
++// ─── Mandatory vehicle-history review ────────────────────────────────────────
+ 
++function HpiBaitSection({ isUnlocked: _isUnlocked, onUnlock: _onUnlock }: { isUnlocked: boolean, onUnlock: () => void }) {
+     return (
+         <div className="mt-8">
+-            <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-input)] overflow-hidden flex flex-col md:flex-row shadow-2xl">
+-                {/* Left side: Image with blur */}
+-                <div className="relative w-full md:w-2/5 aspect-[4/3] md:aspect-auto cursor-pointer group" onClick={onUnlock}>
++            <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 overflow-hidden flex flex-col md:flex-row shadow-2xl">
++                <div className="relative w-full md:w-2/5 aspect-[4/3] md:aspect-auto">
+                     <Image
+                         src="/assets/images/Hpi Template.jpg"
+-                        alt="HPI Report Preview"
++                        alt="Vehicle history report preview"
+                         fill
+-                        className="object-cover blur-[6px] opacity-70 group-hover:blur-sm group-hover:opacity-90 transition-all duration-500 group-hover:scale-105"
++                        className="object-cover opacity-85"
+                     />
