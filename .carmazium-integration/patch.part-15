@@ -1,0 +1,91 @@
++                                                            <p className="text-sm text-[var(--text-muted)] mt-3">{job.description}</p>
++                                                        </div>
++                                                        <div className="md:text-right shrink-0">
++                                                            {job.budget_pence ? <p className="text-xl font-bold text-emerald-400">{formatTradePounds(job.budget_pence)}</p> : <p className="text-sm text-[var(--text-muted)]">Open budget</p>}
++                                                            <p className="text-xs text-[var(--text-muted)] mt-1">Posted {new Date(job.created_at).toLocaleDateString('en-GB')}</p>
++                                                        </div>
++                                                    </div>
++                                                    <div className="flex flex-wrap gap-3 mt-5 pt-5 border-t border-[var(--border-default)]">
++                                                        {job.status === 'open' && <Button size="sm" onClick={() => void openQuotes(job.id)} disabled={quotesLoading && selectedJobId === job.id}><Gavel size={14} className="mr-2" />{selectedJobId === job.id ? 'Hide quotes' : 'Compare quotes'}</Button>}
++                                                        {job.status === 'awaiting_payment' && <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => void payJob(job.id)} disabled={busy === `pay:${job.id}`}><CreditCard size={14} className="mr-2" />{busy === `pay:${job.id}` ? 'Opening…' : `Pay ${formatTradePounds(job.agreed_amount_pence)}`}</Button>}
++                                                        {['draft', 'open', 'awaiting_payment'].includes(job.status) && <Button size="sm" variant="outline" onClick={() => void cancelJob(job.id)} disabled={busy === `cancel:${job.id}`}><X size={14} className="mr-2" />Cancel</Button>}
++                                                    </div>
++
++                                                    {selectedJobId === job.id && (
++                                                        <div className="mt-5 rounded-xl border border-[var(--border-default)] bg-[var(--bg-input)] p-4">
++                                                            <h4 className="font-bold mb-3">Private competing quotes</h4>
++                                                            {quotesLoading ? <div className="py-6 flex justify-center"><Loader2 className="animate-spin text-primary" /></div> : quotes.length === 0 ? <p className="text-sm text-[var(--text-muted)] py-4">No providers have quoted yet.</p> : (
++                                                                <div className="space-y-3">
++                                                                    {quotes.map(quote => (
++                                                                        <div key={quote.offer_id} className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-card)] p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
++                                                                            <div><div className="flex items-center gap-2"><p className="font-bold">{quote.business_name}</p>{quote.verification_status === 'verified' && <ShieldCheck size={15} className="text-emerald-400" />}</div>{quote.message && <p className="text-sm text-[var(--text-muted)] mt-1">{quote.message}</p>}{quote.available_from && <p className="text-xs text-[var(--text-muted)] mt-1">Available from {new Date(quote.available_from).toLocaleDateString('en-GB')}</p>}</div>
++                                                                            <div className="flex items-center gap-3 md:justify-end"><span className="font-bold text-xl text-emerald-400">{formatTradePounds(quote.amount_pence)}</span>{quote.status === 'submitted' && <Button size="sm" onClick={() => void acceptQuote(job.id, quote.offer_id)} disabled={busy === `quote:${quote.offer_id}`} >{busy === `quote:${quote.offer_id}` ? <Loader2 size={14} className="animate-spin" /> : 'Accept & pay'}</Button>}</div>
++                                                                        </div>
++                                                                    ))}
++                                                                </div>
++                                                            )}
++                                                            <p className="text-xs text-[var(--text-muted)] mt-4">Provider contact details remain private until the selected quote is paid. TradeXchange service payments include CarMazium's 9% service fee within the agreed amount.</p>
++                                                        </div>
++                                                    )}
++                                                </article>
++                                            ))}
++                                        </div>
++                                    )}
++                                </>
++                            )}
+                         </div>
+                     )}
+ 
+-                    {/* 3. POST A JOB */}
+                     {activeTab === 'post' && (
+                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-2xl mx-auto text-left">
+                             <div className="glass-strong p-8 rounded-2xl border border-[var(--border-default)]">
+-                                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+-                                    <PlusCircle className="text-emerald-500" /> Create a New Request
+-                                </h2>
+-                                <form className="space-y-6">
++                                <h2 className="text-2xl font-bold mb-2 flex items-center gap-2"><PlusCircle className="text-emerald-500" /> {isLead ? 'Create a New Enquiry' : 'Create a New Request'}</h2>
++                                <p className="text-sm text-[var(--text-muted)] mb-6">{isLead ? 'Your contact details are shared only with approved providers after you give consent.' : 'Approved providers see a redacted request and compete with private quotes.'}</p>
++                                <form className="space-y-6" onSubmit={submitRequest}>
+                                     <div className="space-y-2">
+-                                        <label className="text-sm font-bold text-[var(--text-secondary)]">Job Title</label>
+-                                        <Input placeholder="e.g. Transport needed for Mercedes C-Class" />
+-                                    </div>
+-
+-                                    <div className="grid grid-cols-2 gap-6">
+-                                        <div className="space-y-2">
+-                                            <label className="text-sm font-bold text-[var(--text-secondary)]">Service Type</label>
+-                                            <select className="w-full h-10 rounded-md bg-[var(--bg-input)] border border-[var(--border-default)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+-                                                <option>Transport</option>
+-                                                <option>Inspection</option>
+-                                                <option>Detailing</option>
+-                                                <option>Repair</option>
+-                                            </select>
+-                                        </div>
+-                                        <div className="space-y-2">
+-                                            <label className="text-sm font-bold text-[var(--text-secondary)]">Budget Estimate</label>
+-                                            <Input placeholder="e.g. £300" />
+-                                        </div>
++                                        <label className="text-sm font-bold text-[var(--text-secondary)]">Service Type</label>
++                                        <select value={category} onChange={e => setCategory(e.target.value as TradeServiceCategory)} className="w-full h-10 rounded-md bg-[var(--bg-input)] border border-[var(--border-default)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
++                                            <option value="delivery">Delivery & Recovery</option><option value="inspection">Vehicle Inspection</option><option value="finance">Vehicle Finance</option><option value="warranty">Vehicle Warranty</option>
++                                        </select>
+                                     </div>
+ 
+-                                    <div className="space-y-2">
+-                                        <label className="text-sm font-bold text-[var(--text-secondary)]">Description</label>
+-                                        <textarea
+-                                            className="w-full min-h-[120px] rounded-md bg-[var(--bg-input)] border border-[var(--border-default)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 custom-scrollbar resize-none"
+-                                            placeholder="Describe the vehicle details, pick-up/drop-off locations, and any specific requirements..."
+-                                        />
+-                                    </div>
++                                    {isLead ? (
++                                        <>
++                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
++                                                <div className="space-y-2"><label className="text-sm font-bold text-[var(--text-secondary)]">Vehicle Registration</label><Input value={registration} onChange={e => setRegistration(e.target.value.toUpperCase())} placeholder="e.g. AB12 CDE" /></div>
++                                                <div className="space-y-2"><label className="text-sm font-bold text-[var(--text-secondary)]">Vehicle</label><Input value={vehicleLabel} onChange={e => setVehicleLabel(e.target.value)} placeholder="e.g. 2021 BMW 320d" /></div>
++                                            </div>
++                                            <div className="space-y-2"><label className="text-sm font-bold text-[var(--text-secondary)]">What do you need?</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full min-h-[120px] rounded-md bg-[var(--bg-input)] border border-[var(--border-default)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 custom-scrollbar resize-none" placeholder={category === 'finance' ? 'Tell approved finance providers what type of finance or stock funding you are looking for…' : 'Tell approved warranty providers what cover you need…'} /></div>
++                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6"><div className="space-y-2"><label className="text-sm font-bold text-[var(--text-secondary)]">Contact Email</label><Input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} /></div><div className="space-y-2"><label className="text-sm font-bold text-[var(--text-secondary)]">Contact Phone</label><Input value={contactPhone} onChange={e => setContactPhone(e.target.value)} /></div></div>
++                                            <label className="flex items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-input)] p-4 cursor-pointer"><input type="checkbox" className="mt-1" checked={consent} onChange={e => setConsent(e.target.checked)} /><span className="text-sm text-[var(--text-secondary)]">I agree that CarMazium may share the contact details above with approved {category === 'finance' ? 'finance' : 'warranty'} providers solely so they can respond to this enquiry.</span></label>
++                                        </>
