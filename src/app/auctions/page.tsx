@@ -8,9 +8,7 @@ import {
     Gavel, Truck, Wrench, Banknote, ShieldCheck,
     ArrowRight, type LucideIcon,
 } from "lucide-react"
-import { RequireAuth } from "@/components/auth/RequireAuth"
 import { HowAuctionsWork } from "@/components/auctions/HowAuctionsWork"
-import { TRADE_EXCHANGE_ROLES } from "@/lib/tradeAccess"
 
 /**
  * Trade Exchange landing dashboard — the menu of what the room contains.
@@ -22,15 +20,15 @@ import { TRADE_EXCHANGE_ROLES } from "@/lib/tradeAccess"
  * returnPath allowlist (/^\/(buy-cars|auctions)\//) that /auctions/browse still
  * satisfies.
  *
- * The public/gated split is the same one the old page had, and it matters:
- *   - hero and How It Works stay PUBLIC. They show no vehicle and no live bid,
- *     and they are the dealer-recruitment pitch — the reason a dealer signs up
- *     at all. Gating them would make the Trade Exchange invisible to search and
- *     to the exact audience it is for.
- *   - the section menu is DEALER-ONLY, same as the grid it replaced.
+ * THIS WHOLE PAGE IS PUBLIC, deliberately. Hero, section menu and How It Works
+ * show no vehicle, no price and no live bid — they are the dealer-recruitment
+ * pitch, and gating them would hide the Trade Exchange from search and from the
+ * exact audience it exists to attract.
  *
- * The gate here is UI, not security. Every route it points at enforces the rule
- * again for itself, and the auction endpoints refuse non-dealers server-side.
+ * The gate sits one click further in. "Enter the auction room" goes to
+ * /auctions/browse, which requires a verified dealer, and the auction endpoints
+ * refuse everyone else server-side (VerifiedDealerGuard) — so the trade stock is
+ * protected by the API, not by whether this menu rendered.
  */
 
 type Section = {
@@ -230,31 +228,36 @@ export default function TradeExchangePage() {
                 <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
             </section>
 
-            {/* ── Section menu (dealer-only) ────────────────────────────────── */}
-            <RequireAuth
-                title="Sign up to enter the Trade Exchange"
-                signupRole="DEALER"
-                allowedRoles={TRADE_EXCHANGE_ROLES}
-                requireVerifiedDealer
-                message="The Trade Exchange is open to registered dealers. Signing up takes a minute."
-            >
-                <section className="container mx-auto px-4 md:px-6 py-16">
-                    <div className="mb-10">
-                        <h2 className="text-2xl md:text-3xl font-black font-heading tracking-tight mb-2">
-                            Where do you want to go?
-                        </h2>
-                        <p className="text-[var(--text-muted)] text-sm">
-                            Auctions are open now. The other four service areas are on the way.
-                        </p>
-                    </div>
+            {/* ── Section menu (public) ─────────────────────────────────────
+                Shown to everyone, signed in or not. The gate moved off this
+                menu and onto the click-through: "Enter the auction room" leads
+                to /auctions/browse, which is where RequireAuth decides whether
+                you get in.
 
-                    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                        {SECTIONS.map((section, i) => (
-                            <SectionCard key={section.title} section={section} index={i} />
-                        ))}
-                    </div>
-                </section>
-            </RequireAuth>
+                Safe to make public because these cards are static copy — no
+                vehicle, no price, no bid, nothing fetched. The thing that had
+                to stay behind the wall is the stock itself, and that lives on
+                /auctions/browse, still gated on a verified dealer and still
+                refused server-side by VerifiedDealerGuard.
+
+                It is also the better funnel: a dealer who cannot see what the
+                room contains has no reason to sign up for it. */}
+            <section className="container mx-auto px-4 md:px-6 py-16">
+                <div className="mb-10">
+                    <h2 className="text-2xl md:text-3xl font-black font-heading tracking-tight mb-2">
+                        Where do you want to go?
+                    </h2>
+                    <p className="text-[var(--text-muted)] text-sm">
+                        Auctions are open now. The other four service areas are on the way.
+                    </p>
+                </div>
+
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {SECTIONS.map((section, i) => (
+                        <SectionCard key={section.title} section={section} index={i} />
+                    ))}
+                </div>
+            </section>
 
             {/* Public on purpose — see the note at the top of this file. */}
             <HowAuctionsWork />
