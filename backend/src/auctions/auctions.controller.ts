@@ -25,6 +25,7 @@ import { UpdateAuctionDigestDto } from './dto/update-auction-digest.dto';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { OptionalSessionAuthGuard } from '../auth/guards/optional-session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { VerifiedDealerGuard } from '../auth/guards/verified-dealer.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -44,13 +45,16 @@ export class AuctionsController {
     //
     // Enforced here and not only in the UI — hiding a grid in React leaves the
     // JSON one curl away, so the browse listing itself has to require the role.
+    // VerifiedDealerGuard, not RolesGuard: role DEALER is self-serve, so gating
+    // on the role alone let anyone switch their own account over and read the
+    // trade stock without ever passing KYC.
+    //
     // Per-auction detail (@Get(':id')) deliberately stays on the optional guard:
     // a private seller has to be able to open their own car's auction room, and
     // that page applies its own seller-or-dealer rule.
 
     @Get('active')
-    @UseGuards(SessionAuthGuard, RolesGuard)
-    @Roles(UserRole.DEALER, UserRole.ADMIN)
+    @UseGuards(SessionAuthGuard, VerifiedDealerGuard)
     @ApiCookieAuth()
     @ApiOperation({ summary: 'Get all live (ACTIVE) auctions — dealers only' })
     @ApiResponse({ status: 200, description: 'List of active auctions' })
@@ -61,8 +65,7 @@ export class AuctionsController {
     }
 
     @Get('scheduled')
-    @UseGuards(SessionAuthGuard, RolesGuard)
-    @Roles(UserRole.DEALER, UserRole.ADMIN)
+    @UseGuards(SessionAuthGuard, VerifiedDealerGuard)
     @ApiCookieAuth()
     @ApiOperation({ summary: 'Get all upcoming (SCHEDULED) auctions — dealers only' })
     @ApiResponse({ status: 200, description: 'List of scheduled auctions' })

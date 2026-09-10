@@ -15,7 +15,7 @@ import { formatPrice, type Listing } from "@/lib/listingApi"
 import { aiSearch, type AiSearchResult } from "@/lib/aiApi"
 import { CarCard } from "@/components/features/CarCard"
 import { getActiveAuctions, type Auction, getCurrentBid, getBidCount } from "@/lib/auctionApi"
-import { canAccessTradeExchange } from "@/lib/tradeAccess"
+import { canAccessTradeStock } from "@/lib/tradeAccess"
 import { useAuth } from "@/context/AuthContext"
 import { CountdownTimer } from "@/components/features/CountdownTimer"
 import { type BlogPost } from "@/lib/blogApi"
@@ -88,7 +88,7 @@ export default function HomeClient({ initialListings, latestBlogPosts = [] }: Ho
   // anyway, so fetching it for everyone would just be a guaranteed 403.
   const { profile } = useAuth()
   const [liveAuctions, setLiveAuctions] = useState<Auction[]>([])
-  const canTrade = canAccessTradeExchange(profile?.role)
+  const canTrade = canAccessTradeStock(profile)
   useEffect(() => {
     if (!canTrade) {
       setLiveAuctions([])

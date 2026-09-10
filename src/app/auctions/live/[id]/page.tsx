@@ -511,6 +511,9 @@ export default function LiveAuctionPage({ params: paramsPromise }: { params: Pro
                Locking a private seller out of their own sale would be a bug, not
                a trade restriction. */
             allowedRoles={isSeller ? undefined : TRADE_EXCHANGE_ROLES}
+            /* Same exemption for verification: the seller's own auction room is
+               theirs regardless of KYC, which is a dealer-side requirement. */
+            requireVerifiedDealer={!isSeller}
             message="Sign up as a dealer to view this vehicle and bid in the live auction room."
         >
         <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg-body)' }}>

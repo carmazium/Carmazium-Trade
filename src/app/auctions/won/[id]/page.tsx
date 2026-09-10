@@ -15,7 +15,7 @@ import {
 import { ImageLightbox } from "@/components/features/ImageLightbox"
 import { useAuth } from "@/context/AuthContext"
 import { RequireAuth } from "@/components/auth/RequireAuth"
-import { TRADE_EXCHANGE_ROLES, canAccessTradeExchange } from "@/lib/tradeAccess"
+import { TRADE_EXCHANGE_ROLES, canAccessTradeStock } from "@/lib/tradeAccess"
 import { getWonAuctionById, type Auction } from "@/lib/auctionApi"
 import { createChatRoom, type ChatRoom } from "@/lib/chatApi"
 import { ChatWindow } from "@/components/chat/ChatWindow"
@@ -113,7 +113,7 @@ export default function WonAuctionPage({ params: paramsPromise }: { params: Prom
     // Fetch auction data — through the winner-gated endpoint (not the public
     // findOne), so the seller's phone/email are actually present to display.
     React.useEffect(() => {
-        if (authLoading || !user || !canAccessTradeExchange(profile?.role)) return
+        if (authLoading || !user || !canAccessTradeStock(profile)) return
         getWonAuctionById(auctionId)
             .then(a => {
                 if (!a || !a.buyerFeePaid) {
@@ -141,13 +141,14 @@ export default function WonAuctionPage({ params: paramsPromise }: { params: Prom
     // rule applies. The winner-gated API would refuse a stranger anyway, but
     // this stops a non-dealer (or a guest) sitting on a spinner forever — the
     // fetch effect above never runs for them.
-    if (!user || !canAccessTradeExchange(profile?.role)) {
+    if (!user || !canAccessTradeStock(profile)) {
         return (
             <div className="pt-20">
                 <RequireAuth
                     title="Sign up to enter the Trade Exchange"
                     signupRole="DEALER"
                     allowedRoles={TRADE_EXCHANGE_ROLES}
+                    requireVerifiedDealer
                     message="Auction handovers are open to registered dealers."
                 >
                     {null}

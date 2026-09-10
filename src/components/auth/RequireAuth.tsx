@@ -3,7 +3,8 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Lock, LogIn, UserPlus, Loader2, ShieldOff, BadgeCheck } from "lucide-react"
+import { Lock, LogIn, UserPlus, Loader2, ShieldOff, BadgeCheck, Clock } from "lucide-react"
+import { isUnverifiedDealer } from "@/lib/tradeAccess"
 import { useAuth } from "@/context/AuthContext"
 
 interface Props {
@@ -41,6 +42,16 @@ interface Props {
      * a dead end that only offers a way back out.
      */
     upgradeRole?: string
+    /**
+     * Require an APPROVED dealer KYC, not just the DEALER role.
+     *
+     * Set this on anything showing live trade prices. Role DEALER is self-serve
+     * — a buyer can switch their own account over from the profile page — so
+     * the role alone is not evidence of anything. A dealer mid-application gets
+     * the "verification pending" panel, which points at KYC rather than telling
+     * them to sign up again.
+     */
+    requireVerifiedDealer?: boolean
 }
 
 /**
@@ -76,6 +87,7 @@ export function RequireAuth({
     unauthorizedTitle = "Upgrade to a Dealer Account",
     unauthorizedMessage = "The Trade Exchange — live auctions, part exchange and trade jobs — is open to registered dealers. Your account doesn't have trade access yet.",
     upgradeRole = "DEALER",
+    requireVerifiedDealer,
 }: Props) {
     const { user, profile, loading } = useAuth()
     const pathname = usePathname()
@@ -85,6 +97,52 @@ export function RequireAuth({
         return (
             <div className="min-h-[60vh] flex items-center justify-center">
                 <Loader2 className="animate-spin text-primary" size={32} />
+            </div>
+        )
+    }
+
+    // A dealer whose KYC has not been approved. Checked BEFORE the role branch
+    // below, which would otherwise wave them through — their role is DEALER,
+    // it is the verification they are missing.
+    //
+    // Its own panel rather than the upgrade one: they already have the right
+    // account and a half-finished application, so the useful thing to show is
+    // the way back into it.
+    if (user && requireVerifiedDealer && isUnverifiedDealer(profile)) {
+        return (
+            <div className="min-h-[70vh] flex items-center justify-center px-5 py-20">
+                <div className="w-full max-w-md text-center">
+                    <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-6">
+                        <Clock size={26} className="text-amber-500" />
+                    </div>
+                    <h1 className="text-2xl sm:text-3xl font-black font-heading tracking-tight mb-3">
+                        Verification pending
+                    </h1>
+                    <p className="text-[var(--text-muted)] leading-relaxed mb-8">
+                        The Trade Exchange opens once your dealer account is verified. Finish your
+                        KYC and we will review it — most are checked within one working day.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <Link
+                            href="/dashboard/dealer"
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-white text-sm font-black uppercase tracking-widest hover:bg-primary/90 transition-colors"
+                        >
+                            <BadgeCheck size={16} /> Finish verification
+                        </Link>
+                        <Link
+                            href="/search"
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-body)]/60 text-sm font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-primary/40 transition-colors"
+                        >
+                            Browse cars for sale
+                        </Link>
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)] mt-8">
+                        Already submitted?{" "}
+                        <Link href="/contact" className="text-primary font-semibold hover:underline">
+                            Chase it up with us
+                        </Link>
+                    </p>
+                </div>
             </div>
         )
     }

@@ -31,7 +31,7 @@ import {
     getBidCount, isAntiSnipeActive, type Auction,
 } from "@/lib/auctionApi"
 import { RequireAuth } from "@/components/auth/RequireAuth"
-import { TRADE_EXCHANGE_ROLES, canAccessTradeExchange } from "@/lib/tradeAccess"
+import { TRADE_EXCHANGE_ROLES, canAccessTradeStock } from "@/lib/tradeAccess"
 import { useAuth } from "@/context/AuthContext"
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
@@ -456,7 +456,7 @@ export default function AuctionsBrowsePage() {
     const [lastRefresh, setLastRefresh] = React.useState(Date.now())
 
     const { user, profile, loading: authLoading } = useAuth()
-    const canTrade = canAccessTradeExchange(profile?.role)
+    const canTrade = canAccessTradeStock(profile)
 
     const { location: userLocation, setPostcode } = useLocation()
     const { trackEvent } = useAnalytics()
@@ -656,7 +656,7 @@ export default function AuctionsBrowsePage() {
     if (!authLoading && user && !canTrade) {
         return (
             <div className="min-h-screen" style={{ background: 'var(--bg-body)' }}>
-                <RequireAuth allowedRoles={TRADE_EXCHANGE_ROLES}>{null}</RequireAuth>
+                <RequireAuth allowedRoles={TRADE_EXCHANGE_ROLES} requireVerifiedDealer>{null}</RequireAuth>
             </div>
         )
     }
@@ -768,6 +768,7 @@ export default function AuctionsBrowsePage() {
                 title="Sign up to enter the Trade Exchange"
                 signupRole="DEALER"
                 allowedRoles={TRADE_EXCHANGE_ROLES}
+                requireVerifiedDealer
                 message="Live and upcoming vehicle auctions are open to registered dealers. Signing up takes a minute."
             >
 

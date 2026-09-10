@@ -235,6 +235,7 @@ export default function TradeExchangePage() {
                 title="Sign up to enter the Trade Exchange"
                 signupRole="DEALER"
                 allowedRoles={TRADE_EXCHANGE_ROLES}
+                requireVerifiedDealer
                 message="The Trade Exchange is open to registered dealers. Signing up takes a minute."
             >
                 <section className="container mx-auto px-4 md:px-6 py-16">
