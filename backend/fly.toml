@@ -4,7 +4,24 @@ primary_region = 'lhr'
 [build]
 
 [deploy]
-  release_command = "npx prisma db push --accept-data-loss"
+  # NO release_command on purpose.
+  #
+  # This used to run `prisma db push --accept-data-loss`, which drops any table
+  # present in the database but absent from schema.prisma. The tradexchange_*
+  # tables (jobs, offers, payments, transactions, team members, provider
+  # accounts, service capabilities, lead recipients) live in Supabase and are
+  # not modelled here, so every deploy was one dependency check away from
+  # deleting them. The 2026-09-10 deploy is proof: it tried, and was stopped
+  # only because an RLS policy on tradexchange_offers depended on the table.
+  #
+  # Schema changes are applied by hand against the database (see
+  # prisma/migrations/*.sql) before the deploy that needs them, which is how
+  # they have actually been shipped. The Dockerfile still runs `prisma
+  # generate`, so the client is always built against schema.prisma.
+  #
+  # If an automated step is ever wanted here, it must be `prisma migrate deploy`
+  # with a real migration history — never `db push`, which treats the schema
+  # file as the whole truth and everything else as garbage to collect.
 
 [http_service]
   internal_port = 8080
