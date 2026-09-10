@@ -1,0 +1,133 @@
+-                            Vehicle history reports that have been paid for but not yet produced. Listings stay live
+-                            while they wait, so nothing here is blocking a seller — but every row is someone who has
+-                            paid and is still owed a report.
++                            Mandatory vehicle-history/HPI reviews that must be completed before a listing can go live.
++                            Buyer-paid emailed copies, when any are waiting, use the same completed report.
+                         </p>
+                     </header>
+ 
+@@ -148,7 +145,7 @@ export default function AdminHpiQueuePage() {
+                                 <ClipboardList size={32} className="mx-auto mb-3 text-[var(--text-muted)] opacity-50" />
+                                 <p className="font-bold text-[var(--text-primary)]">Nothing outstanding</p>
+                                 <p className="text-xs text-[var(--text-muted)] mt-1">
+-                                    Every paid vehicle history report has been produced.
++                                    Every mandatory vehicle-history review is complete.
+                                 </p>
+                             </div>
+                         ) : (
+diff --git a/src/app/dashboard/admin/listings/page.tsx b/src/app/dashboard/admin/listings/page.tsx
+index c63b8c7..c5ba5df 100644
+--- a/src/app/dashboard/admin/listings/page.tsx
++++ b/src/app/dashboard/admin/listings/page.tsx
+@@ -241,11 +241,9 @@ export default function AdminListingsPage() {
+                                 {pendingListings.map((l) => {
+                                     const isExpanded = expandedId === l.id
+                                     const isRejectedResubmit = l.status === 'REJECTED'
+-                                    // Seller paid for an HPI report that hasn't been produced.
+-                                    // Informational only — this no longer blocks approval; the
+-                                    // listing goes live and the report is attached afterwards
+-                                    // from the HPI queue.
+-                                    const hpiPending = l.hpiReport?.status === 'PENDING'
++                                    // Every listing must complete its vehicle-history/HPI review before approval.
++                                    // Missing or pending reports therefore keep the listing in review.
++                                    const hpiPending = l.hpiReport?.status !== 'COMPLETED'
+                                     return (
+                                         <div key={l.id} className={`border rounded-xl overflow-hidden ${isRejectedResubmit ? 'border-red-500/30' : 'border-[var(--border-default)]'}`}>
+                                             <button
+@@ -358,8 +356,8 @@ export default function AdminListingsPage() {
+                                                                         <div className="flex-1 min-w-0">
+                                                                             <p className="text-xs font-bold text-primary">HPI report outstanding</p>
+                                                                             <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+-                                                                                This seller paid for a vehicle history report. You can approve now and attach
+-                                                                                it later — it stays in the HPI queue until you do.
++                                                                                This mandatory vehicle-history/HPI review must be completed before the listing can go live.
++                                                                                Finish it from the HPI queue, then return here to approve the listing.
+                                                                             </p>
+                                                                         </div>
+                                                                     </div>
+@@ -411,8 +409,8 @@ export default function AdminListingsPage() {
+                                                                 <button
+                                                                     type="button"
+                                                                     onClick={() => handleApprove(l.id)}
+-                                                                    disabled={actionLoading === l.id}
+-                                                                    title={hpiPending ? 'Goes live with its HPI report still outstanding — attach it later from the HPI queue' : undefined}
++                                                                    disabled={actionLoading === l.id || hpiPending}
++                                                                    title={hpiPending ? 'Complete the mandatory HPI report before approval' : undefined}
+                                                                     className="flex-1 px-4 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-xs uppercase tracking-widest hover:bg-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                                                                 >
+                                                                     {actionLoading === l.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+diff --git a/src/app/dashboard/dealer/auctions/won/page.tsx b/src/app/dashboard/dealer/auctions/won/page.tsx
+index 79ed3ed..40ade29 100644
+--- a/src/app/dashboard/dealer/auctions/won/page.tsx
++++ b/src/app/dashboard/dealer/auctions/won/page.tsx
+@@ -70,7 +70,7 @@ const STAGE_LABELS: Record<HandoverStage, { label: string; hint: string; icon: R
+     },
+     denied: {
+         label: "Refund in progress",
+-        hint: "The submitted proof wasn't accepted. £100 of your £125 fee is being refunded to you.",
++        hint: "The sale has been cancelled through the failed-sale process. Your £125 buyer fee is being refunded in full.",
+         icon: XCircle,
+         tint: "bg-red-500/10 text-red-400 border-red-500/25",
+     },
+@@ -517,7 +517,7 @@ export default function MyBidsPage() {
+                     {!isEmpty && !isLoading && !loadError && (
+                         <div className="dealer-glass-card p-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[var(--text-muted)]">
+                             <span className="flex items-center gap-1.5"><Car size={13} /> The winning bid itself is paid directly to the seller, not through Carmazium.</span>
+-                            <span className="flex items-center gap-1.5"><CreditCard size={13} /> The £125 buyer fee is Carmazium&apos;s fee — up to £100 of it is refunded if handover is denied.</span>
++                            <span className="flex items-center gap-1.5"><CreditCard size={13} /> The £125 buyer fee is CarMazium&apos;s auction fee. If CarMazium approves a failed-sale cancellation, the fee is refunded in full.</span>
+                         </div>
+                     )}
+                 </main>
+diff --git a/src/app/dashboard/user/page.tsx b/src/app/dashboard/user/page.tsx
+index 1613f56..a0f746d 100644
+--- a/src/app/dashboard/user/page.tsx
++++ b/src/app/dashboard/user/page.tsx
+@@ -529,6 +529,8 @@ function InventoryTab({ onRefreshStats }: { onRefreshStats: () => void }) {
+             const result = await publishListing(listing.id)
+             if (result.activated) {
+                 setListings(prev => prev.map(l => l.id === listing.id ? { ...l, status: 'ACTIVE' as const } : l))
++            } else if (result.pendingReview) {
++                setListings(prev => prev.map(l => l.id === listing.id ? { ...l, status: 'PENDING_REVIEW' as const } : l))
+             } else if (result.requiresPayment) {
+                 const checkout = await createListingCheckoutSession(listing.id, listing.badgeTier || 'BASIC')
+                 window.location.href = checkout.url
+diff --git a/src/app/pricing/page.tsx b/src/app/pricing/page.tsx
+index ea6b539..4633857 100644
+--- a/src/app/pricing/page.tsx
++++ b/src/app/pricing/page.tsx
+@@ -10,7 +10,7 @@ import { DealerCtaButton } from "@/components/features/DealerCtaButton"
+ 
+ export const metadata: Metadata = {
+     title: "Pricing",
+-    description: "Transparent pricing for listing your car, HPI vehicle checks, and featured boosts. List for free or upgrade to reach more buyers faster.",
++    description: "Transparent pricing for listing your car, mandatory vehicle-history review, optional emailed reports, and featured boosts.",
+ }
+ 
+ // ─── Types ─────────────────────────────────────────────────────────────────────
+@@ -30,7 +30,7 @@ const TIER_FEATURES: TierFeature[] = [
+     { label: "DVLA auto-fill (VRM lookup)",   basic: true,     standard: true,    premium: true },
+     { label: "Performance analytics",         basic: true,     standard: true,    premium: true },
+     { label: "Priority search placement",     basic: false,    standard: false,   premium: true },
+-    { label: "HPI Verified badge",            basic: "Add-on", standard: "Add-on", premium: "Included" },
++    { label: "Vehicle-history / HPI review",  basic: "Included", standard: "Included", premium: "Included" },
+     { label: "Featured boost eligibility",    basic: true,     standard: true,    premium: true },
+     { label: "Listing duration",              basic: "30 days", standard: "60 days", premium: "Until sold" },
+ ]
+@@ -41,8 +41,8 @@ const FAQS = [
+         a: "Our Basic tier costs just £1 — no subscription, no hidden fees. You get a public listing with up to 5 photos, the offer system, and buyer chat. Upgrade to Standard or Premium if you want more photos, analytics, or better placement.",
+     },
+     {
+-        q: "What does the HPI Check include?",
+-        a: "The HPI report covers outstanding finance, write-off history, mileage anomalies, stolen vehicle records, and plate changes. A successful check adds a verified green badge to your listing, increasing buyer confidence.",
++        q: "Is the vehicle-history / HPI review optional?",
++        a: "No. Every listing must complete the vehicle-history review before it can go live. Sellers do not need to buy a separate HPI add-on during listing. A separate emailed vehicle-history report can still be purchased where offered.",
+     },
+     {
+         q: "How long does a Featured Boost last?",
+@@ -178,7 +178,7 @@ export default function PricingPage() {
+                             <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> Featured boost eligible</li>
+                             <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> 60-day listing duration</li>
+                             <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><XCircle size={15} className="text-[var(--text-faint)] shrink-0" /> Priority search placement</li>
+-                            <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><XCircle size={15} className="text-[var(--text-faint)] shrink-0" /> Free HPI included</li>
++                            <li className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)]"><CheckCircle size={15} className="text-emerald-500 dark:text-emerald-400 shrink-0" /> Vehicle-history review included</li>
+                         </ul>
