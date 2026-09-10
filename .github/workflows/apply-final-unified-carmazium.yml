@@ -19,22 +19,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Reconstruct source patch safely
+      - name: Reconstruct and integrity-check source patch
         shell: bash
         run: |
           : > /tmp/final-unified.patch
           for part in .carmazium-integration/patch.part-{01..18}; do
             cat "$part" >> /tmp/final-unified.patch
-            last_byte="$(tail -c 1 "$part" | od -An -t x1 | tr -d ' \n')"
-            if [ "$last_byte" != "0a" ]; then
-              printf '\n' >> /tmp/final-unified.patch
+            # part 17 ended with an added blank-line marker (`+`) in the original
+            # patch; GitHub API staging dropped that final one-character line.
+            if [ "$part" = ".carmazium-integration/patch.part-17" ]; then
+              printf '+\n' >> /tmp/final-unified.patch
             fi
           done
+          # API staging added a leading space before several diff metadata headers.
+          # This normalises metadata only; source hunk contents remain unchanged.
           sed -i 's/^ diff --git /diff --git /' /tmp/final-unified.patch
-          echo "Reconstructed patch checksum:"
-          sha256sum /tmp/final-unified.patch
-          test -s /tmp/final-unified.patch
-          grep -q '^diff --git ' /tmp/final-unified.patch
+          echo "001bd08f742daf17dee35b192f2b491b38af09dd389419d9be1e9509a180e3a3  /tmp/final-unified.patch" | sha256sum -c -
 
       - name: Apply source changes with three-way merge
         shell: bash
