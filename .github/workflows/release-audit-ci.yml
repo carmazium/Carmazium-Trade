@@ -1,0 +1,92 @@
+name: Release audit gate
+
+on:
+  push:
+    branches:
+      - release-audit-ci-2026-09-11
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout audit branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify and apply frozen audit patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "7b784b43b3cd8be5a8ffed67918e57f91dfd8efaaf31938bbf305e62fdfb5d9c  .carmazium-audit/release-audit.patch.xz" | sha256sum -c -
+          xz -dc .carmazium-audit/release-audit.patch.xz > /tmp/release-audit.patch
+          echo "aae019282cf3fa9527f4b9ba6f230c15f0b1944a027e0fd2a3bcdc30eeaf4eab  /tmp/release-audit.patch" | sha256sum -c -
+          git apply --3way --index /tmp/release-audit.patch
+          git diff --cached --check
+
+      - name: Frontend clean install
+        run: npm ci
+
+      - name: Frontend lint
+        run: npm run lint
+
+      - name: Frontend production build
+        env:
+          NEXT_PUBLIC_API_URL: https://carmazium-hjoh9w.fly.dev
+          NEXT_PUBLIC_SUPABASE_URL: https://bwtnzmevjlowwronylxm.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-public-placeholder
+        run: npm run build
+
+      - name: Backend clean install
+        working-directory: backend
+        run: npm ci --ignore-scripts
+
+      - name: Backend lint
+        working-directory: backend
+        run: npx eslint "src/**/*.ts" "test/**/*.ts" --no-error-on-unmatched-pattern
+
+      - name: Backend production build
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium?schema=public
+          DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium?schema=public
+        run: npm run build
+
+      - name: Backend tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium?schema=public
+          DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium?schema=public
+          NODE_ENV: test
+        run: npm test -- --runInBand
+
+      - name: Mobile clean install
+        working-directory: carmazium app/carmazium app
+        run: npm ci
+
+      - name: Mobile TypeScript
+        working-directory: carmazium app/carmazium app
+        run: npm run typescript
+
+      - name: Mobile lint
+        working-directory: carmazium app/carmazium app
+        run: npm run lint
+
+      - name: Commit validated audited source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .carmazium-audit
+          rm -f .github/workflows/release-audit-ci.yml
+          git add -A
+          git diff --cached --check
+          git config user.name "carmazium-audit-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "fix: complete CarMazium release audit"
+          git push origin HEAD:release-audit-ci-2026-09-11
