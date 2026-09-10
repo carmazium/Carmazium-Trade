@@ -438,7 +438,7 @@ export default function MyBidsPage() {
                                 </p>
                             </div>
                             <Link
-                                href="/auctions"
+                                href="/auctions/browse"
                                 className="inline-flex items-center gap-1.5 px-5 py-3 rounded-xl bg-primary hover:bg-red-600 text-white text-sm font-black transition-colors"
                             >
                                 <Gavel size={14} /> Browse live auctions

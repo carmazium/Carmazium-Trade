@@ -479,7 +479,7 @@ export default function LiveAuctionPage({ params: paramsPromise }: { params: Pro
                 >
                     <RefreshCw size={13} /> Try Again
                 </button>
-                <Link href="/auctions" className="text-[var(--text-muted)] text-xs font-bold hover:text-primary dark:hover:text-white transition-colors flex items-center gap-1">
+                <Link href="/auctions/browse" className="text-[var(--text-muted)] text-xs font-bold hover:text-primary dark:hover:text-white transition-colors flex items-center gap-1">
                     <ArrowLeft size={13} /> All Auctions
                 </Link>
             </div>
@@ -640,7 +640,7 @@ export default function LiveAuctionPage({ params: paramsPromise }: { params: Pro
             <div className="sticky top-[80px] z-30 backdrop-blur-xl border-b" style={{ background: 'var(--bg-header)', borderColor: 'var(--border-default)' }}>
                 <div className="container mx-auto px-6 h-14 flex items-center justify-between">
                     <div className="flex items-center gap-3 min-w-0">
-                        <Link href="/auctions" className="text-[var(--text-muted)] hover:text-primary dark:hover:text-white transition-colors shrink-0">
+                        <Link href="/auctions/browse" className="text-[var(--text-muted)] hover:text-primary dark:hover:text-white transition-colors shrink-0">
                             <ArrowLeft size={16} />
                         </Link>
                         <div className="w-px h-4 bg-white/10 shrink-0" />
@@ -720,7 +720,7 @@ export default function LiveAuctionPage({ params: paramsPromise }: { params: Pro
                             <p className="text-red-400 font-bold text-sm">This auction has been cancelled</p>
                             <p className="text-[var(--text-muted)] text-xs">The seller has cancelled this auction before it started.</p>
                         </div>
-                        <Link href="/auctions" className="ml-auto text-xs font-bold text-primary hover:text-red-400 transition-colors shrink-0">
+                        <Link href="/auctions/browse" className="ml-auto text-xs font-bold text-primary hover:text-red-400 transition-colors shrink-0">
                             Browse Auctions →
                         </Link>
                     </div>

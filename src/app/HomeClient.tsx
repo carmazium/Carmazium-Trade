@@ -271,7 +271,7 @@ export default function HomeClient({ initialListings, latestBlogPosts = [] }: Ho
         >
           {/* Top Row: Main Actions */}
           <div className="flex flex-wrap justify-center gap-6 w-full">
-            {/* <Link href="/auctions">
+            {/* <Link href="/auctions/browse">
               <Button size="lg" shape="pill" className="w-full sm:w-auto min-w-[280px] py-7 text-xl shadow-neon hover:scale-105 transition-transform">
                 Browse Auctions <ArrowRight className="ml-2" />
               </Button>
@@ -378,7 +378,7 @@ export default function HomeClient({ initialListings, latestBlogPosts = [] }: Ho
               </h2>
               <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Real-time bidding — place your bid before the gavel drops</p>
             </div>
-            <Link href="/auctions" className="text-sm text-red-500 hover:text-red-400 flex items-center gap-1 font-medium">
+            <Link href="/auctions/browse" className="text-sm text-red-500 hover:text-red-400 flex items-center gap-1 font-medium">
               View All <ArrowRight size={14} />
             </Link>
           </div>
