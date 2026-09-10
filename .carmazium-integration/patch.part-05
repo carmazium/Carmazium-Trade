@@ -1,0 +1,213 @@
++            ? `The auction sale of "${auction.listing.title}" was cancelled (${cleanReason}). The vehicle is back in Draft so you can update it before relisting.`
++            : `The auction sale of "${auction.listing.title}" was cancelled. The vehicle is back in Draft so you can update it before relisting.`;
++
++        const buyerNotification = await this.notificationsService.create({
++            userId: winnerId,
++            type: 'AUCTION_REFUNDED',
++            title: 'Auction buyer fee refunded',
++            message: buyerMessage,
++            entityType: 'AUCTION',
++            entityId: auctionId,
++            link: '/dashboard/dealer/auctions/won',
++        }).catch(() => null);
++        if (buyerNotification) this.notificationsGateway.sendNotification(winnerId, buyerNotification);
++
++        if (sellerId) {
++            const sellerNotification = await this.notificationsService.create({
++                userId: sellerId,
++                type: 'AUCTION_SALE_CANCELLED',
++                title: 'Auction sale cancelled',
++                message: sellerMessage,
++                entityType: 'AUCTION',
++                entityId: auctionId,
++                link: '/dashboard/seller/listings',
++            }).catch(() => null);
++            if (sellerNotification) this.notificationsGateway.sendNotification(sellerId, sellerNotification);
++        }
++
++        return { refunded: true, amount: 125, auctionId, listingId: auction.listingId };
++    }
++
+     async getPendingHandovers() {
+         return this.prisma.auction.findMany({
+             where: {
+@@ -899,36 +1038,9 @@ export class AdminService {
+             return auction;
+         }
+ 
+-        // Issue £100 partial Stripe refund to buyer if they paid
+-        if (auction.buyerFeePaid && auction.buyerFeeTransactionId) {
+-            try {
+-                await this.paymentsService.issueRefundForAuction(auctionId);
+-            } catch (err: any) {
+-                const errMsg = err?.message || 'Unknown Stripe error';
+-                console.error(`[Admin] Stripe refund failed for auction ${auctionId}:`, errMsg);
+-                // Persist error so admins can see it in the handovers view and refund manually —
+-                // previously this failure was only console-logged, so a failed refund left the
+-                // buyer's £125 fee unrecovered with no one alerted.
+-                await this.prisma.auction.update({
+-                    where: { id: auctionId },
+-                    data: { stripeRefundError: errMsg },
+-                });
+-                const admins = await this.prisma.user.findMany({
+-                    where: { role: 'ADMIN', deletedAt: null },
+-                    select: { id: true },
+-                });
+-                for (const admin of admins) {
+-                    this.notificationsGateway.sendNotification(admin.id, {
+-                        type: 'REFUND_FAILED',
+-                        title: '⚠️ Refund failed — manual action needed',
+-                        message: `Auto-refund of £100 to buyer for "${auction.listing.title}" failed: ${errMsg}. Please refund manually via Stripe.`,
+-                        entityType: 'AUCTION',
+-                        entityId: auctionId,
+-                        link: '/dashboard/admin/handovers',
+-                    });
+-                }
+-            }
+-        }
++        // Rejecting the seller's evidence is NOT a failed-sale event. The seller
++        // can resubmit a clearer proof, so the buyer's £125 fee remains untouched.
++        // Failed-sale / undisclosed-fault refunds use refundAuctionBuyerFee().
+ 
+         // Purge the denied proof from Supabase storage — the URL is a public path
+         // like `${supabaseUrl}/storage/v1/object/public/listings/handover/{id}/xxx.jpg`;
+@@ -1012,24 +1124,16 @@ export class AdminService {
+         return { data, total };
+     }
+ 
+-    // £25 of the £125 auction buyer fee is CarMazium's own cut — the other
+-    // £100 is a seller bonus paid out via Stripe Connect transfer
+-    // (issueSellerPayout). Mirrors AUCTION_PLATFORM_FEE in payments.service.ts.
+-    private readonly AUCTION_PLATFORM_FEE_CUT = 25;
++    private readonly AUCTION_BUYER_FEE = 125;
+ 
+     /**
+-     * "Revenue" here means money CarMazium actually retains, not gross Stripe
+-     * throughput. LISTING_FEE, HPI_REPORT (seller's report request) and
+-     * HPI_REPORT_EMAIL (buyer's paid emailed copy) are all kept in full.
+-     * COMMISSION (the £125 auction buyer fee) is counted per-transaction at
+-     * the fixed £25 platform cut, not by summing `amount` — the stored
+-     * amount is the full £125, £100 of which is seller pass-through. DEPOSIT
+-     * and FULL_PAYMENT are buyer funds for the vehicle itself — refundable or
+-     * a pass-through to the seller — and are excluded entirely; there's
+-     * currently no seller-payout mechanism for FULL_PAYMENT by design (retail
+-     * sales settle outside the fee flow), so none of that money is ever
+-     * CarMazium's to count. BOOST payments don't create Transaction rows at
+-     * all yet (see FeaturedBoostService) and so aren't reflected here either.
++     * Platform revenue counts fees paid to CarMazium. The £125 auction buyer
++     * fee is CarMazium's platform fee in full; the separate £100 seller
++     * incentive is a promotional expense, not a pass-through component of it.
++     * Vehicle purchase funds (DEPOSIT/FULL_PAYMENT) are excluded because the
++     * vehicle price is settled buyer-to-seller outside the platform fee model.
++     * BOOST payments do not currently create Transaction rows and are therefore
++     * not included here.
+      */
+     private async computeRealRevenue(dateRange?: { gte: Date; lte: Date }): Promise<number> {
+         const createdAt = dateRange ? { createdAt: dateRange } : {};
+@@ -1042,7 +1146,7 @@ export class AdminService {
+                 where: { status: 'COMPLETED', deletedAt: null, type: 'COMMISSION', ...createdAt },
+             }),
+         ]);
+-        return Number(feeAgg._sum?.amount ?? 0) + commissionCount * this.AUCTION_PLATFORM_FEE_CUT;
++        return Number(feeAgg._sum?.amount ?? 0) + commissionCount * this.AUCTION_BUYER_FEE;
+     }
+ 
+     async getPlatformStats() {
+diff --git a/backend/src/auctions/auctions.controller.ts b/backend/src/auctions/auctions.controller.ts
+index 8ac0563..cf43f17 100644
+--- a/backend/src/auctions/auctions.controller.ts
++++ b/backend/src/auctions/auctions.controller.ts
+@@ -121,7 +121,7 @@ export class AuctionsController {
+     @ApiCookieAuth()
+     @HttpCode(HttpStatus.CREATED)
+     @ApiOperation({ summary: 'Create a new auction for a listing you own' })
+-    @ApiResponse({ status: 201, description: 'Auction created. endTime = startTime + 5 hours.' })
++    @ApiResponse({ status: 201, description: 'Auction created. endTime = startTime + 24 hours.' })
+     @ApiResponse({ status: 400, description: 'Validation error or auction already exists' })
+     @ApiResponse({ status: 403, description: 'You do not own this listing' })
+     async create(@Body() createAuctionDto: CreateAuctionDto, @CurrentUser() user: any) {
+diff --git a/backend/src/auctions/dto/create-auction.dto.ts b/backend/src/auctions/dto/create-auction.dto.ts
+index 6cee1f7..f344c65 100644
+--- a/backend/src/auctions/dto/create-auction.dto.ts
++++ b/backend/src/auctions/dto/create-auction.dto.ts
+@@ -7,7 +7,7 @@ export class CreateAuctionDto {
+     @IsUUID()
+     listingId: string;
+ 
+-    @ApiProperty({ description: 'Auction start time (ISO string). End time is always startTime + 5 hours.', example: '2026-06-01T10:00:00.000Z' })
++    @ApiProperty({ description: 'Auction start time (ISO string). End time is always startTime + 24 hours.', example: '2026-06-01T10:00:00.000Z' })
+     @IsDateString()
+     startTime: string;
+ 
+diff --git a/backend/src/dashboard/dashboard.service.ts b/backend/src/dashboard/dashboard.service.ts
+index 5058eb9..6bc15b5 100644
+--- a/backend/src/dashboard/dashboard.service.ts
++++ b/backend/src/dashboard/dashboard.service.ts
+@@ -274,8 +274,10 @@ export class DashboardService {
+             earnings: earnings.map(s => ({
+                 id: s.id,
+                 soldPrice: Number(s.soldPrice),
+-                platformFee: Number(s.soldPrice) * 0.025,
+-                net: Number(s.soldPrice) * 0.975,
++                // Vehicle purchase funds are paid directly buyer-to-seller.
++                // CarMazium does not deduct a percentage commission from retail proceeds.
++                platformFee: 0,
++                net: Number(s.soldPrice),
+                 listing: { title: s.listing?.title ?? 'Vehicle' },
+                 createdAt: s.createdAt,
+             })),
+diff --git a/backend/src/email/email.service.ts b/backend/src/email/email.service.ts
+index fd1234a..153fa01 100644
+--- a/backend/src/email/email.service.ts
++++ b/backend/src/email/email.service.ts
+@@ -1011,7 +1011,7 @@ export class EmailService {
+                 ${reports.length} HPI report${reports.length === 1 ? '' : 's'} still outstanding
+             </h1>
+             <p style="margin: 0 0 24px; font-size: 15px; color: #cbd5e1; line-height: 1.6;">
+-                These vehicles are already live on CarMazium with a report someone has paid for but hasn't received yet.
++                These listings are waiting for their mandatory vehicle-history review before they can go live. Paid buyer email copies, if any, are shown alongside them.
+             </p>
+             <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">${rows}</table>
+             <div style="text-align: center; margin: 32px 0 24px;">
+diff --git a/backend/src/hpi/hpi.service.ts b/backend/src/hpi/hpi.service.ts
+index d8afa25..17136ab 100644
+--- a/backend/src/hpi/hpi.service.ts
++++ b/backend/src/hpi/hpi.service.ts
+@@ -1,4 +1,5 @@
+ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
++import { Prisma } from '@prisma/client';
+ import { PrismaService } from '../prisma/prisma.service';
+ import { HpiPdfService } from './hpi-pdf.service';
+ import { EmailService } from '../email/email.service';
+@@ -14,17 +15,16 @@ import {
+ /**
+  * HPI reports are prepared by CarMazium staff, not fetched from an API.
+  *
+- * A seller opting in at listing time creates a PENDING row the moment their
+- * payment clears; an admin then completes it one of two ways:
++ * Every listing enters a PENDING vehicle-history review before publication;
++ * an admin then completes it one of two ways:
+  *   - the structured form, which computes `isClear` from the checks and lets
+  *     us render our own branded PDF (saveAdminReport), or
+  *   - uploading the supplied third-party PDF wholesale, where `isClear` is a
+  *     deliberate admin call rather than derived (saveAdminPdf).
+  *
+- * A PENDING report does NOT hold up the listing. It publishes, runs, and can
+- * even sell while the report is still outstanding — the admin attaches it
+- * afterwards from the HPI queue, and everyone waiting on it (the seller, and
+- * any buyer who paid for an emailed copy) is notified at that point.
++ * A PENDING report blocks admin approval, so the listing cannot go live until
++ * the check is completed. Buyers can still separately request a paid emailed
++ * copy of the completed report where that feature is offered.
+  *
+  * Rows created before this change came from OneAutoAPI and carry
+  * source=ONE_AUTO_API with the raw response in `data` — they still render
+@@ -46,10 +46,9 @@ export class HpiService {
+     ) { }
+ 
+     /**
+-     * Called when an HPI payment clears. Idempotent: Stripe can deliver the
+-     * webhook more than once, and the checkout-success page calls the same
+-     * fallback path, so this must never create a second row or clobber a
+-     * report an admin has already filled in.
++     * Create the listing's HPI review row. Idempotent so admin-review seeding,
