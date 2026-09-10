@@ -24,7 +24,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "7b784b43b3cd8be5a8ffed67918e57f91dfd8efaaf31938bbf305e62fdfb5d9c  .carmazium-audit/release-audit.patch.xz" | sha256sum -c -
           xz -dc .carmazium-audit/release-audit.patch.xz > /tmp/release-audit.patch
           echo "aae019282cf3fa9527f4b9ba6f230c15f0b1944a027e0fd2a3bcdc30eeaf4eab  /tmp/release-audit.patch" | sha256sum -c -
           git apply --3way --index /tmp/release-audit.patch
