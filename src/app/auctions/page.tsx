@@ -31,6 +31,7 @@ import {
     getBidCount, isAntiSnipeActive, type Auction,
 } from "@/lib/auctionApi"
 import { RequireAuth } from "@/components/auth/RequireAuth"
+import { ComingSoonServices } from "@/components/auctions/ComingSoonServices"
 import { TRADE_EXCHANGE_ROLES, canAccessTradeExchange } from "@/lib/tradeAccess"
 import { useAuth } from "@/context/AuthContext"
 
@@ -1575,6 +1576,11 @@ export default function AuctionsPage() {
                     )}
                 </div>
             </div>
+
+            {/* Dealer-only, same as the grid above: these are trade services, and
+                the section sits inside the gate so it doesn't read as a promise
+                to retail accounts who can't post jobs in the first place. */}
+            <ComingSoonServices />
 
             </RequireAuth>
 

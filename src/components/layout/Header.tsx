@@ -8,21 +8,20 @@ import { Menu, X, LogIn, User as UserIcon, LogOut, ChevronDown, Car } from "luci
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/Button"
 import { useAuth } from "@/context/AuthContext"
-import { canAccessTradeExchange } from "@/lib/tradeAccess"
 import { useChat } from "@/context/ChatContext"
 import { getPendingOffersCount } from "@/lib/listingApi"
 import { NotificationBell } from "@/components/layout/NotificationBell"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
 
 
-const navLinks: { name: string; href: string; prefetch?: boolean; badge?: string; tradeOnly?: boolean }[] = [
+const navLinks: { name: string; href: string; prefetch?: boolean; badge?: string }[] = [
     { name: "Home", href: "/" },
     { name: "Buy Cars", href: "/search" },
     { name: "Sell Cars", href: "/sell", prefetch: false },
     // Label only — the route stays /auctions. Renaming the URL would break
     // existing links, SEO, the /auctions/live/[id] children, and the
     // backend's returnPath allowlist (/^\/(buy-cars|auctions)\//).
-    { name: "Trade Exchange", href: "/auctions", tradeOnly: true },
+    { name: "Trade Exchange", href: "/auctions" },
     { name: "Compare", href: "/compare" },
     { name: "Pricing", href: "/pricing" },
     { name: "About", href: "/about" },
@@ -42,16 +41,13 @@ export function Header() {
         setActiveLink(pathname || "")
     }, [pathname])
 
-    // Trade-only entries are hidden from signed-in buyers and sellers — there is
-    // nothing behind them for a non-dealer but a "dealers only" wall. Guests keep
-    // seeing them: /auctions still has a public dealer-recruitment pitch, and
-    // hiding the link would make the Trade Exchange undiscoverable to the dealers
-    // it is meant to attract.
-    const canTrade = canAccessTradeExchange(profile?.role)
-    const visibleNavLinks = React.useMemo(
-        () => navLinks.filter(link => !link.tradeOnly || !user || canTrade),
-        [user, canTrade]
-    )
+    // Every account sees the Trade Exchange link, dealer or not. Hiding it from
+    // buyers and sellers hid the upsell as well as the room: a retail account is
+    // exactly who we want to convert into a dealer, and they can't want what they
+    // can't see. Non-dealers who follow it land on the upgrade prompt in
+    // RequireAuth — no trade stock and no live bids reach them, so the link costs
+    // nothing but a click.
+    const visibleNavLinks = navLinks
 
     const toggleMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen)
 

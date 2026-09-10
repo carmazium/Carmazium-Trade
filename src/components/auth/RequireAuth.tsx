@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Lock, LogIn, UserPlus, Loader2, ShieldOff, Home } from "lucide-react"
+import { Lock, LogIn, UserPlus, Loader2, ShieldOff, BadgeCheck } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 
 interface Props {
@@ -35,6 +35,12 @@ interface Props {
     /** Copy for the wrong-role panel. Defaults to Trade Exchange wording. */
     unauthorizedTitle?: string
     unauthorizedMessage?: string
+    /**
+     * Role the wrong-role panel invites the visitor to upgrade to. Set it and
+     * the panel becomes a conversion step ("Create a Dealer Account") instead of
+     * a dead end that only offers a way back out.
+     */
+    upgradeRole?: string
 }
 
 /**
@@ -67,11 +73,13 @@ export function RequireAuth({
     message = "The Trade Exchange is open to registered dealers. Signing up takes a minute.",
     signupRole,
     allowedRoles,
-    unauthorizedTitle = "Dealers only",
-    unauthorizedMessage = "The Trade Exchange — auctions, part exchange and trade jobs — is restricted to dealer accounts. Your account doesn't have trade access.",
+    unauthorizedTitle = "Upgrade to a Dealer Account",
+    unauthorizedMessage = "The Trade Exchange — live auctions, part exchange and trade jobs — is open to registered dealers. Your account doesn't have trade access yet.",
+    upgradeRole = "DEALER",
 }: Props) {
     const { user, profile, loading } = useAuth()
     const pathname = usePathname()
+    const redirect = encodeURIComponent(pathname || "/auctions")
 
     if (loading) {
         return (
@@ -84,6 +92,14 @@ export function RequireAuth({
     // Signed in, but the wrong kind of account. No teaser and no vehicle data
     // reaches this branch — the children never render.
     if (user && allowedRoles && !allowedRoles.includes(profile?.role ?? "")) {
+        // Not a dead end. This is the one moment a retail account is actively
+        // asking for the trade room, so the panel sells the upgrade rather than
+        // just closing the door — the "browse cars" link stays as the way out.
+        //
+        // The primary CTA opens a DEALER signup rather than flipping the current
+        // account's role. Trade access carries KYC and a verification review, so
+        // it is not something a button may grant; the account goes through the
+        // same door every other dealer does.
         return (
             <div className="min-h-[70vh] flex items-center justify-center px-5 py-20">
                 <div className="w-full max-w-md text-center">
@@ -93,15 +109,29 @@ export function RequireAuth({
                     <h1 className="text-2xl sm:text-3xl font-black font-heading tracking-tight mb-3">
                         {unauthorizedTitle}
                     </h1>
-                    <p className="text-[var(--text-muted)] leading-relaxed mb-8">
+                    <p className="text-[var(--text-muted)] leading-relaxed mb-6">
                         {unauthorizedMessage}
                     </p>
+
+                    <ul className="text-left text-sm text-[var(--text-secondary)] space-y-2 mb-8 mx-auto max-w-xs">
+                        {[
+                            "Bid on live trade auctions",
+                            "See trade prices and run part exchange",
+                            "Post delivery, inspection and finance jobs",
+                        ].map(item => (
+                            <li key={item} className="flex items-start gap-2">
+                                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                                {item}
+                            </li>
+                        ))}
+                    </ul>
+
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
                         <Link
-                            href="/"
+                            href={`/auth/signup?redirect=${redirect}&role=${encodeURIComponent(upgradeRole)}`}
                             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-white text-sm font-black uppercase tracking-widest hover:bg-primary/90 transition-colors"
                         >
-                            <Home size={16} /> Back to home
+                            <BadgeCheck size={16} /> Create a Dealer Account
                         </Link>
                         <Link
                             href="/search"
@@ -110,6 +140,13 @@ export function RequireAuth({
                             Browse cars for sale
                         </Link>
                     </div>
+
+                    <p className="text-xs text-[var(--text-muted)] mt-8">
+                        Already trade?{" "}
+                        <Link href="/contact" className="text-primary font-semibold hover:underline">
+                            Ask us to switch this account over
+                        </Link>
+                    </p>
                 </div>
             </div>
         )
@@ -117,7 +154,6 @@ export function RequireAuth({
 
     if (user) return <>{children}</>
 
-    const redirect = encodeURIComponent(pathname || "/auctions")
     const signupHref = `/auth/signup?redirect=${redirect}${signupRole ? `&role=${encodeURIComponent(signupRole)}` : ""}`
 
     return (

@@ -5,15 +5,9 @@ import Image from "next/image"
 import { Button } from "@/components/ui/Button"
 import { Mail, Phone, MapPin } from "lucide-react"
 import { useConsent } from "@/context/ConsentContext"
-import { useAuth } from "@/context/AuthContext"
-import { canAccessTradeExchange } from "@/lib/tradeAccess"
 
 export function Footer() {
     const { openPreferences } = useConsent()
-    const { user, profile } = useAuth()
-    // Same rule as the header: signed-in non-dealers don't get a link to a room
-    // they can't enter; guests still do, because /auctions recruits dealers.
-    const showTradeExchange = !user || canAccessTradeExchange(profile?.role)
     return (
         <footer className="bg-gradient-to-t from-[#1e293b] to-[#2d3c63] text-white pt-16 pb-8 border-t border-white/5 mt-auto">
             <div className="container mx-auto px-5">
@@ -45,9 +39,9 @@ export function Footer() {
                         <ul className="space-y-2 text-gray-400">
                             <li><Link href="/" className="hover:text-primary transition-colors">Home</Link></li>
                             <li><Link href="/search" className="hover:text-primary transition-colors">Buy Cars</Link></li>
-                            {showTradeExchange && (
-                                <li><Link href="/auctions" className="hover:text-primary transition-colors">Trade Exchange</Link></li>
-                            )}
+                            {/* Shown to everyone — see the note in Header.tsx. Non-dealers
+                                get the upgrade prompt, not the trade stock. */}
+                            <li><Link href="/auctions" className="hover:text-primary transition-colors">Trade Exchange</Link></li>
                             <li><Link href="/sell" className="hover:text-primary transition-colors">Sell Cars</Link></li>
                             <li><Link href="/about" className="hover:text-primary transition-colors">About</Link></li>
                             <li><Link href="/terms" className="hover:text-primary transition-colors">Terms & Conditions</Link></li>
