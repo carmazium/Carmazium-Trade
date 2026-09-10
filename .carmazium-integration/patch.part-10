@@ -1,0 +1,187 @@
++                            : sessionData?.metadata?.type === 'TRADEXCHANGE_SERVICE'
++                            ? 'Service Payment Confirmed!'
+                             : 'Payment Successful!'}
+                     </h1>
+                     <p className="mt-3 text-lg text-gray-300">
+@@ -169,6 +174,8 @@ function CheckoutSuccessContent() {
+                             ? 'Your £1 verification fee is confirmed. Our team will review your dealer application shortly.'
+                             : sessionData?.metadata?.type === 'DEPOSIT'
+                             ? "Your £500 refundable deposit is confirmed and the seller has been notified. Message them to arrange the rest of the sale — the vehicle price itself is paid directly between you and the seller."
++                            : sessionData?.metadata?.type === 'TRADEXCHANGE_SERVICE'
++                            ? 'Your selected TradeXchange provider is now booked. CarMazium records the service payment as held until the completion workflow is finished.'
+                             : 'Your transaction has been completed securely through Stripe.'}
+                     </p>
+                 </motion.div>
+@@ -240,6 +247,19 @@ function CheckoutSuccessContent() {
+                                 <LayoutDashboard size={18} /> Go to Dealer Dashboard <ArrowRight size={14} />
+                             </Link>
+                         </Button>
++                    ) : sessionData?.metadata?.type === 'TRADEXCHANGE_SERVICE' ? (
++                        <>
++                            <Button asChild className="gap-2 bg-gradient-to-r from-primary to-[#ff4d4d] hover:from-[#ff4d4d] hover:to-primary px-6">
++                                <Link href="/services?tab=jobs">
++                                    <Briefcase size={18} /> View Service Jobs <ArrowRight size={14} />
++                                </Link>
++                            </Button>
++                            <Button asChild variant="outline" className="gap-2 border-white/20 hover:bg-[var(--bg-card)]">
++                                <Link href="/auctions">
++                                    <Home size={18} /> Trade Exchange
++                                </Link>
++                            </Button>
++                        </>
+                     ) : (
+                         <>
+                             <Button asChild className="gap-2 bg-gradient-to-r from-primary to-[#ff4d4d] hover:from-[#ff4d4d] hover:to-primary px-6">
+diff --git a/src/app/dashboard/admin/auctions/page.tsx b/src/app/dashboard/admin/auctions/page.tsx
+index d59caa3..debdb60 100644
+--- a/src/app/dashboard/admin/auctions/page.tsx
++++ b/src/app/dashboard/admin/auctions/page.tsx
+@@ -1,15 +1,15 @@
+-﻿"use client"
++"use client"
+ 
+ import * as React from "react"
+ import Link from "next/link"
+ import Image from "next/image"
+ import { useRouter } from "next/navigation"
+-import { Gavel, Loader2, ArrowLeft, Eye, Car, UserCheck, X, AlertTriangle, Pencil } from "lucide-react"
++import { Gavel, Loader2, ArrowLeft, Eye, Car, UserCheck, X, AlertTriangle, Pencil, RefreshCcw } from "lucide-react"
+ import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar"
+ import { UserDetailModal } from "@/components/dashboard/UserDetailModal"
+ import { ListingEditModal } from "@/components/dashboard/ListingEditModal"
+ import { useAuth } from "@/context/AuthContext"
+-import { getAdminAuctions, getAllDealers, assignAuctionWinner } from "@/lib/adminApi"
++import { getAdminAuctions, getAllDealers, assignAuctionWinner, refundAuctionBuyerFee } from "@/lib/adminApi"
+ import { formatPrice } from "@/lib/listingApi"
+ 
+ const STATUS_STYLES: Record<string, string> = {
+@@ -38,6 +38,7 @@ export default function AdminAuctionsPage() {
+     const [assignError, setAssignError] = React.useState<string | null>(null)
+     const [selectedUserId, setSelectedUserId] = React.useState<string | null>(null)
+     const [editListingId, setEditListingId] = React.useState<string | null>(null)
++    const [refundingAuctionId, setRefundingAuctionId] = React.useState<string | null>(null)
+ 
+     React.useEffect(() => {
+         if (!authLoading) {
+@@ -94,6 +95,25 @@ export default function AdminAuctionsPage() {
+         }
+     }
+ 
++    async function handleRefundBuyerFee(auction: any) {
++        const reason = window.prompt(
++            'Reason for cancelling this sale and refunding the buyer fee?\n\nUse this only for a verified failed sale, such as a material undisclosed fault found during inspection.',
++            'Material undisclosed fault confirmed during inspection',
++        )
++        if (!reason?.trim()) return
++        if (!window.confirm('Refund the full £125 buyer fee and return the vehicle to Draft for correction/relisting?')) return
++
++        setRefundingAuctionId(auction.id)
++        try {
++            await refundAuctionBuyerFee(auction.id, reason.trim())
++            loadAuctions()
++        } catch (err: any) {
++            alert(err.message || 'Failed to refund buyer fee')
++        } finally {
++            setRefundingAuctionId(null)
++        }
++    }
++
+     const assignAmount = assignTarget
+         ? (assignTarget.buyItNowPrice != null ? Number(assignTarget.buyItNowPrice) : Number(assignTarget.reservePrice))
+         : 0
+@@ -213,6 +233,17 @@ export default function AdminAuctionsPage() {
+                                                             <UserCheck size={16} />
+                                                         </button>
+                                                     )}
++                                                    {a.status === 'ENDED' && a.buyerFeePaid && !a.sellerBonusReleased && (
++                                                        <button
++                                                            type="button"
++                                                            onClick={() => handleRefundBuyerFee(a)}
++                                                            disabled={refundingAuctionId === a.id}
++                                                            className="p-2.5 hover:bg-red-500/10 rounded-lg transition-colors text-red-400 hover:text-red-300 inline-flex disabled:opacity-40 cursor-pointer"
++                                                            title="Cancel failed sale & refund full £125 buyer fee"
++                                                        >
++                                                            {refundingAuctionId === a.id ? <Loader2 size={16} className="animate-spin" /> : <RefreshCcw size={16} />}
++                                                        </button>
++                                                    )}
+                                                     <button
+                                                         type="button"
+                                                         onClick={() => a.listing?.id && setEditListingId(a.listing.id)}
+diff --git a/src/app/dashboard/admin/handovers/page.tsx b/src/app/dashboard/admin/handovers/page.tsx
+index c883fb9..08a8f50 100644
+--- a/src/app/dashboard/admin/handovers/page.tsx
++++ b/src/app/dashboard/admin/handovers/page.tsx
+@@ -1,4 +1,4 @@
+-﻿"use client"
++"use client"
+ 
+ import * as React from "react"
+ import Link from "next/link"
+@@ -106,7 +106,7 @@ export default function AdminHandoversPage() {
+     }
+ 
+     const handleDeny = async (auctionId: string) => {
+-        if (!confirm('Deny this handover? A £100 refund will be issued to the buyer (Stripe) and the seller can resubmit proof.')) return
++        if (!confirm('Reject this handover proof? The seller will be asked to upload clearer evidence. The buyer fee will not be changed.')) return
+         try {
+             setProcessing(auctionId)
+             await denyHandover(auctionId)
+@@ -140,7 +140,7 @@ export default function AdminHandoversPage() {
+                             Handover Verification
+                         </h1>
+                         <p className="text-[var(--text-muted)] mt-1 text-sm">
+-                            Review seller-submitted handover proofs. Approve to release the £100 seller bonus, or deny to refund the buyer.
++                            Review seller-submitted handover proofs. Approve to release the £100 seller bonus, or reject the proof and ask the seller to resubmit clearer evidence.
+                         </p>
+                     </div>
+ 
+@@ -268,12 +268,12 @@ export default function AdminHandoversPage() {
+                                                     <span className="font-bold">£125.00</span>
+                                                 </div>
+                                                 <div className="flex justify-between">
+-                                                    <span className="text-[var(--text-muted)]">→ Seller bonus (on approval)</span>
+-                                                    <span className="font-bold text-emerald-400">£100.00</span>
++                                                    <span className="text-[var(--text-muted)]">CarMazium buyer/platform fee</span>
++                                                    <span className="font-bold">£125.00</span>
+                                                 </div>
+                                                 <div className="flex justify-between border-t border-[var(--border-default)] pt-1">
+-                                                    <span className="text-[var(--text-muted)]">Carmazium keeps</span>
+-                                                    <span className="font-bold">£25.00</span>
++                                                    <span className="text-[var(--text-muted)]">Separate seller incentive (on approval)</span>
++                                                    <span className="font-bold text-emerald-400">£100.00</span>
+                                                 </div>
+                                             </div>
+                                             <div className="flex items-center gap-2 text-xs mt-2">
+@@ -352,7 +352,7 @@ export default function AdminHandoversPage() {
+                                             className="flex-1 border-red-500/30 text-red-400 hover:bg-red-500/10 flex items-center justify-center gap-2"
+                                         >
+                                             {processing === h.id ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+-                                            Deny & Refund £100
++                                            Reject Proof
+                                         </Button>
+                                     </div>
+                                 </div>
+diff --git a/src/app/dashboard/admin/hpi/page.tsx b/src/app/dashboard/admin/hpi/page.tsx
+index 5b8089d..80df60b 100644
+--- a/src/app/dashboard/admin/hpi/page.tsx
++++ b/src/app/dashboard/admin/hpi/page.tsx
+@@ -27,12 +27,10 @@ function daysSince(iso: string): number {
+ }
+ 
+ /**
+- * The queue of HPI reports someone has paid for and not yet received.
++ * Mandatory vehicle-history/HPI reviews awaiting completion.
+  *
+- * This page exists because a pending report no longer holds a listing back:
+- * the vehicle publishes, runs, and can sell while its report is outstanding, so
+- * the pending-review queue is no longer where these surface. This is the only
+- * place they do.
++ * A PENDING report blocks listing approval. Buyer-paid emailed copies share the
++ * same completed report and are shown as waiting recipients where applicable.
+  */
+ export default function AdminHpiQueuePage() {
+     const { user, profile, loading: authLoading } = useAuth()
+@@ -104,9 +102,8 @@ export default function AdminHpiQueuePage() {
+                             HPI Reports
+                         </h1>
+                         <p className="text-sm text-[var(--text-muted)] mt-1.5 leading-relaxed max-w-2xl">
