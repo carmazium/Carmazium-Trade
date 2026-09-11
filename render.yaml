@@ -6,7 +6,9 @@ services:
     repo: https://github.com/pizn-01/carmazium
     branch: main
     rootDir: backend
-    buildCommand: npm install --include=dev && npm run build && npx prisma db push
+    # Schema changes must be applied through reviewed migrations. Never run
+    # `prisma db push` automatically against production during a build.
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm run start:prod
     envVars:
       - key: NODE_ENV
