@@ -702,16 +702,29 @@ export class PaymentsService {
 
     /**
      * Refund the £100 refundable portion of the £125 auction buyer fee.
-     * The £25 platform fee remains non-refundable in all cases. This is for a
-     * failed/cancelled qualifying sale — rejecting an unclear proof photo alone
-     * must not call this method; the seller should first be allowed to resubmit.
+     * The £25 platform fee remains non-refundable in all cases.
+     *
+     * IMPORTANT: proof rejection is not a failed sale. The admin proof-review
+     * path intentionally calls this method without a failure reason; that call
+     * is a no-op so the seller can resubmit proof without accidentally refunding
+     * the buyer. Only an explicit failed/cancelled-sale action may pass
+     * reason='FAILED_SALE'.
      *
      * The original £125 COMMISSION row remains COMPLETED. A separate negative
      * £100 REFUND ledger row preserves net CarMazium revenue of £25.
      */
-    async issueRefundForAuction(auctionId: string): Promise<void> {
+    async issueRefundForAuction(auctionId: string, reason?: 'FAILED_SALE'): Promise<void> {
+        if (reason !== 'FAILED_SALE') {
+            this.logger.warn(`Ignored auction refund request for ${auctionId}: no explicit failed-sale reason supplied.`);
+            return;
+        }
+
         const auction = await this.prisma.auction.findUnique({ where: { id: auctionId } });
-        if (!auction?.buyerFeeTransactionId) return;
+        if (!auction?.buyerFeeTransactionId || !auction.buyerFeePaid) return;
+        if (auction.sellerBonusReleased) {
+            throw new BadRequestException('Cannot refund the auction buyer fee after the seller bonus has been released.');
+        }
+
         const transaction = await this.prisma.transaction.findUnique({ where: { id: auction.buyerFeeTransactionId } });
         if (!transaction?.stripePaymentId || transaction.type !== ('COMMISSION' as any)) return;
 
