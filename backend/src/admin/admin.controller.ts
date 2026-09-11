@@ -240,7 +240,7 @@ export class AdminController {
 
     @Post('handovers/:auctionId/deny')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: 'Deny a handover proof and refund buyer £100' })
+    @ApiOperation({ summary: 'Reject unclear handover proof and allow seller resubmission; no buyer refund' })
     @ApiParam({ name: 'auctionId' })
     async denyHandover(@Param('auctionId') auctionId: string): Promise<StandardResponse<any>> {
         const result = await this.adminService.denyHandover(auctionId);

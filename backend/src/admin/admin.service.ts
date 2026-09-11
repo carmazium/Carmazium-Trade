@@ -899,36 +899,8 @@ export class AdminService {
             return auction;
         }
 
-        // Issue £100 partial Stripe refund to buyer if they paid
-        if (auction.buyerFeePaid && auction.buyerFeeTransactionId) {
-            try {
-                await this.paymentsService.issueRefundForAuction(auctionId);
-            } catch (err: any) {
-                const errMsg = err?.message || 'Unknown Stripe error';
-                console.error(`[Admin] Stripe refund failed for auction ${auctionId}:`, errMsg);
-                // Persist error so admins can see it in the handovers view and refund manually —
-                // previously this failure was only console-logged, so a failed refund left the
-                // buyer's £125 fee unrecovered with no one alerted.
-                await this.prisma.auction.update({
-                    where: { id: auctionId },
-                    data: { stripeRefundError: errMsg },
-                });
-                const admins = await this.prisma.user.findMany({
-                    where: { role: 'ADMIN', deletedAt: null },
-                    select: { id: true },
-                });
-                for (const admin of admins) {
-                    this.notificationsGateway.sendNotification(admin.id, {
-                        type: 'REFUND_FAILED',
-                        title: '⚠️ Refund failed — manual action needed',
-                        message: `Auto-refund of £100 to buyer for "${auction.listing.title}" failed: ${errMsg}. Please refund manually via Stripe.`,
-                        entityType: 'AUCTION',
-                        entityId: auctionId,
-                        link: '/dashboard/admin/handovers',
-                    });
-                }
-            }
-        }
+        // Rejecting evidence is not a failed sale. Do not refund the buyer here;
+        // the seller simply gets another chance to upload clearer proof.
 
         // Purge the denied proof from Supabase storage — the URL is a public path
         // like `${supabaseUrl}/storage/v1/object/public/listings/handover/{id}/xxx.jpg`;

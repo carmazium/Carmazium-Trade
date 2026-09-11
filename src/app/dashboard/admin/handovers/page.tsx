@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import * as React from "react"
 import Link from "next/link"
@@ -106,7 +106,7 @@ export default function AdminHandoversPage() {
     }
 
     const handleDeny = async (auctionId: string) => {
-        if (!confirm('Deny this handover? A £100 refund will be issued to the buyer (Stripe) and the seller can resubmit proof.')) return
+        if (!confirm('Reject this handover proof? No buyer refund will be issued. The seller can upload clearer proof. Use the separate failed-sale action only if the sale genuinely failed or was cancelled.')) return
         try {
             setProcessing(auctionId)
             await denyHandover(auctionId)
@@ -140,7 +140,7 @@ export default function AdminHandoversPage() {
                             Handover Verification
                         </h1>
                         <p className="text-[var(--text-muted)] mt-1 text-sm">
-                            Review seller-submitted handover proofs. Approve to release the £100 seller bonus, or deny to refund the buyer.
+                            Review seller-submitted handover proofs. Approve to release the £100 seller bonus, or reject unclear proof and ask the seller to resubmit. Rejecting proof does not refund the buyer.
                         </p>
                     </div>
 
@@ -352,7 +352,7 @@ export default function AdminHandoversPage() {
                                             className="flex-1 border-red-500/30 text-red-400 hover:bg-red-500/10 flex items-center justify-center gap-2"
                                         >
                                             {processing === h.id ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
-                                            Deny & Refund £100
+                                            Reject Proof — Resubmit
                                         </Button>
                                     </div>
                                 </div>

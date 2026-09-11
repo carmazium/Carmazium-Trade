@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import * as React from "react"
 import Link from "next/link"
@@ -10,6 +10,7 @@ import { UserDetailModal } from "@/components/dashboard/UserDetailModal"
 import { ListingEditModal } from "@/components/dashboard/ListingEditModal"
 import { useAuth } from "@/context/AuthContext"
 import { getAdminAuctions, getAllDealers, assignAuctionWinner } from "@/lib/adminApi"
+import { FailedSaleRefundButton } from "@/components/dashboard/FailedSaleRefundButton"
 import { formatPrice } from "@/lib/listingApi"
 
 const STATUS_STYLES: Record<string, string> = {
@@ -213,6 +214,12 @@ export default function AdminAuctionsPage() {
                                                             <UserCheck size={16} />
                                                         </button>
                                                     )}
+                                                    {a.status === 'ENDED' && a.winner && a.buyerFeePaid && !a.sellerBonusReleased && (
+
+                                                        <FailedSaleRefundButton auctionId={a.id} onCompleted={loadAuctions} />
+
+                                                    )}
+
                                                     <button
                                                         type="button"
                                                         onClick={() => a.listing?.id && setEditListingId(a.listing.id)}
