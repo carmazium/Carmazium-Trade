@@ -3,21 +3,24 @@ import { IsNumber, Min, IsOptional, IsString, Length, IsIn, ValidateIf } from 'c
 import { Type } from 'class-transformer';
 
 export class CreateCheckoutSessionDto {
-    @ApiProperty({ description: 'Listing ID to purchase' })
+    @ApiProperty({ description: 'Listing ID associated with the auction buyer fee' })
     @IsString()
     listingId: string;
 
-    @ApiProperty({ description: 'Amount in GBP (e.g. 500.00 for a deposit, or full price)', minimum: 1 })
+    @ApiProperty({
+        description: 'Client display amount in GBP. The server derives the authoritative auction buyer fee and does not trust this value.',
+        minimum: 1,
+    })
     @IsNumber()
     @Min(1)
     @Type(() => Number)
     amount: number;
 
-    @ApiPropertyOptional({ description: 'Payment type', default: 'FULL_PAYMENT' })
+    @ApiPropertyOptional({ description: 'Checkout payment type', default: 'COMMISSION', enum: ['COMMISSION'] })
     @IsOptional()
     @IsString()
-    @IsIn(['DEPOSIT', 'FULL_PAYMENT', 'COMMISSION'])
-    type?: 'DEPOSIT' | 'FULL_PAYMENT' | 'COMMISSION';
+    @IsIn(['COMMISSION'])
+    type?: 'COMMISSION';
 
     @ApiPropertyOptional({ description: 'ISO 4217 currency code', default: 'gbp' })
     @IsOptional()
@@ -29,23 +32,30 @@ export class CreateCheckoutSessionDto {
 // Keep backward-compatible export name
 export { CreateCheckoutSessionDto as CreatePaymentIntentDto };
 
-/** DTO for the Payment Sheet flow (native SDK) */
+/** DTO for native Payment Sheet flows used for CarMazium platform fees only. */
 export class CreatePaymentSheetDto {
     @ApiProperty({ description: 'Listing ID' })
     @IsString()
     listingId: string;
 
-    @ApiProperty({ description: 'Amount in GBP', minimum: 1 })
+    @ApiProperty({
+        description: 'Client display amount in GBP. Authoritative platform fees are derived server-side.',
+        minimum: 1,
+    })
     @IsNumber()
     @Min(1)
     @Type(() => Number)
     amount: number;
 
-    @ApiPropertyOptional({ description: 'Payment type', default: 'FULL_PAYMENT' })
+    @ApiPropertyOptional({
+        description: 'Platform payment type',
+        default: 'COMMISSION',
+        enum: ['COMMISSION', 'LISTING_FEE', 'HPI_REPORT', 'HPI_REPORT_EMAIL'],
+    })
     @IsOptional()
     @IsString()
-    @IsIn(['DEPOSIT', 'FULL_PAYMENT', 'COMMISSION', 'LISTING_FEE', 'HPI_REPORT', 'HPI_REPORT_EMAIL'])
-    type?: 'DEPOSIT' | 'FULL_PAYMENT' | 'COMMISSION' | 'LISTING_FEE' | 'HPI_REPORT' | 'HPI_REPORT_EMAIL';
+    @IsIn(['COMMISSION', 'LISTING_FEE', 'HPI_REPORT', 'HPI_REPORT_EMAIL'])
+    type?: 'COMMISSION' | 'LISTING_FEE' | 'HPI_REPORT' | 'HPI_REPORT_EMAIL';
 
     @ApiPropertyOptional({ description: 'ISO 4217 currency code', default: 'gbp' })
     @IsOptional()
