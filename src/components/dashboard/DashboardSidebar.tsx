@@ -42,9 +42,6 @@ import { DEALER_ROUTE_CONFIG } from "@/config/dealerRouteConfig"
 import { getPendingOffersCount, getBuyerActionCount } from "@/lib/listingApi"
 import { getOrCreateSupportRoom } from "@/lib/chatApi"
 
-/** Where each role's messages inbox lives, so "Contact Support" can land the
- *  new/existing room straight in view via the same `?room=` auto-select
- *  every inbox already supports. */
 const ROLE_MESSAGES_HREF: Record<string, string> = {
     buyer: "/dashboard/user?tab=messages",
     seller: "/dashboard/user?tab=messages",
@@ -59,7 +56,6 @@ interface SidebarProps {
     userName?: string
     userType?: string
     children?: React.ReactNode
-    /** Unified dashboard (/dashboard/user): badge on My Offers for seller counter-offers awaiting buyer action */
     myOffersCounterBadge?: number
 }
 
@@ -110,7 +106,6 @@ export function DashboardSidebar({ role, userName: initialUserName, userType: in
         }
     }
 
-    // Resolve user name dynamically
     const userName = (initialUserName && initialUserName !== "John Doe" && initialUserName !== "Apex Customs" && initialUserName !== "User")
         ? initialUserName
         : (profile?.firstName ? `${profile.firstName} ${profile.lastName || ""}` : (user?.email?.split('@')[0] || "User"))
@@ -156,6 +151,7 @@ export function DashboardSidebar({ role, userName: initialUserName, userType: in
         provider: [
             { href: "/dashboard/service", label: "Overview", icon: LayoutDashboard },
             { href: "/dashboard/service/jobs", label: "Jobs", icon: Briefcase },
+            { href: "/dashboard/service/capabilities", label: "Service areas", icon: ShieldCheck },
             { href: "/dashboard/service/messages", label: "Messages", icon: MessageSquare, badge: unreadCount },
             { href: "/dashboard/service/settings", label: "Settings", icon: Settings },
         ],
@@ -189,6 +185,7 @@ export function DashboardSidebar({ role, userName: initialUserName, userType: in
             { href: "/dashboard/admin/transactions", label: "Transactions", icon: Receipt },
             { href: "/dashboard/admin/analytics", label: "Analytics", icon: TrendingUp },
             { href: "/dashboard/admin/dealer-verification", label: "Dealer KYC", icon: Shield },
+            { href: "/dashboard/admin/services", label: "Trade Services", icon: Briefcase },
             { href: "/dashboard/admin/dealers", label: "All Dealers", icon: Building2 },
             { href: "/dashboard/admin/marketing-popup", label: "Marketing Popup", icon: Megaphone },
             { href: "/dashboard/admin/blog", label: "Blog", icon: Newspaper },
@@ -204,14 +201,11 @@ export function DashboardSidebar({ role, userName: initialUserName, userType: in
                 : link,
         )
     }, [role, myOffersCounterBadge])
-    // Get first 5 items for mobile bottom nav
     const mobileLinks = currentLinks.slice(0, 5)
-
     const isAdmin = profile?.role === 'ADMIN'
 
     return (
         <>
-            {/* Mobile Bottom Tab Navigation */}
             <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 backdrop-blur-lg border-t pb-[env(safe-area-inset-bottom)]" style={{ background: 'var(--bg-dropdown)', borderColor: 'var(--border-default)' }}>
                 <div className="flex justify-around items-center py-2 px-1">
                     {mobileLinks.map((link) => {
@@ -221,241 +215,80 @@ export function DashboardSidebar({ role, userName: initialUserName, userType: in
                             : pathname === linkPath
                         const Icon = link.icon
                         return (
-                            <Link
-                                key={link.href}
-                                href={link.href}
-                                className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg min-w-[60px] relative transition-all ${isActive
-                                    ? "text-primary"
-                                    : ""
-                                    }`}
-                                style={!isActive ? { color: 'var(--text-muted)' } : undefined}
-                            >
+                            <Link key={link.href} href={link.href} className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg min-w-[60px] relative transition-all ${isActive ? "text-primary" : ""}`} style={!isActive ? { color: 'var(--text-muted)' } : undefined}>
                                 <div className="relative">
                                     <Icon size={20} />
                                     {link.badge && link.badge > 0 && (
                                         link.href.includes('tab=offers') ? (
-                                            // Pulsating dot for offers
                                             <span className="absolute -top-2 -right-2">
                                                 <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-primary opacity-60" />
-                                                <span className="relative inline-flex items-center justify-center rounded-full bg-primary text-white text-[8px] font-black w-4 h-4">
-                                                    {link.badge > 9 ? '9+' : link.badge}
-                                                </span>
+                                                <span className="relative inline-flex items-center justify-center rounded-full bg-primary text-white text-[8px] font-black w-4 h-4">{link.badge > 9 ? '9+' : link.badge}</span>
                                             </span>
                                         ) : (
-                                            <span className="absolute -top-2 -right-2 bg-primary text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                                                {link.badge > 9 ? '9+' : link.badge}
-                                            </span>
+                                            <span className="absolute -top-2 -right-2 bg-primary text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">{link.badge > 9 ? '9+' : link.badge}</span>
                                         )
                                     )}
                                 </div>
-                                <span className={`text-xs mt-1 font-medium ${isActive ? 'text-primary' : ''}`}>
-                                    {link.label}
-                                </span>
-                                {isActive && (
-                                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
-                                )}
+                                <span className={`text-xs mt-1 font-medium ${isActive ? 'text-primary' : ''}`}>{link.label}</span>
+                                {isActive && <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />}
                             </Link>
                         )
                     })}
-                    {/* More menu trigger for additional items */}
-                    <button
-                        onClick={toggleMobileMenu}
-                        className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg min-w-[60px] transition-all ${isMobileMenuOpen ? "text-primary" : ""
-                            }`}
-                        style={!isMobileMenuOpen ? { color: 'var(--text-muted)' } : undefined}
-                    >
+                    <button onClick={toggleMobileMenu} className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg min-w-[60px] transition-all ${isMobileMenuOpen ? "text-primary" : ""}`} style={!isMobileMenuOpen ? { color: 'var(--text-muted)' } : undefined}>
                         {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
                         <span className="text-xs mt-1 font-medium">More</span>
                     </button>
                 </div>
             </div>
 
-            {/* Mobile Full Menu Overlay */}
-            {isMobileMenuOpen && (
-                <div
-                    className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                />
-            )}
+            {isMobileMenuOpen && <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />}
 
-            {/* Mobile Full Menu Panel */}
-            <div className={`
-                lg:hidden fixed bottom-[72px] left-0 right-0 z-40
-                border-t rounded-t-2xl
-                transition-transform duration-300 ease-out shadow-[0_-10px_40px_rgba(0,0,0,0.5)]
-                ${isMobileMenuOpen ? "translate-y-0" : "translate-y-[120%]"}
-            `} style={{ background: 'var(--bg-dropdown)', borderColor: 'var(--border-default)' }}>
+            <div className={`lg:hidden fixed bottom-[72px] left-0 right-0 z-40 border-t rounded-t-2xl transition-transform duration-300 ease-out shadow-[0_-10px_40px_rgba(0,0,0,0.5)] ${isMobileMenuOpen ? "translate-y-0" : "translate-y-[120%]"}`} style={{ background: 'var(--bg-dropdown)', borderColor: 'var(--border-default)' }}>
                 <div className="p-4 pb-12 space-y-2 max-h-[60vh] overflow-y-auto">
-                    {/* User Profile */}
                     <div className="flex items-center gap-3 p-3 rounded-xl mb-4" style={{ background: 'var(--bg-card)' }}>
-                        <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-sm border border-primary/30">
-                            {(userName || "U").split(" ").filter(Boolean).map(n => n[0]).join("").toUpperCase().slice(0, 2)}
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-sm">{userName}</h3>
-                            <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{displayType}</p>
-                        </div>
+                        <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-sm border border-primary/30">{(userName || "U").split(" ").filter(Boolean).map(n => n[0]).join("").toUpperCase().slice(0, 2)}</div>
+                        <div><h3 className="font-bold text-sm">{userName}</h3><p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{displayType}</p></div>
                     </div>
-
-                    {/* Overflow Links (items not in bottom bar) */}
                     {currentLinks.slice(5).map((link) => {
                         const isActive = pathname === link.href
                         const Icon = link.icon
                         return (
-                            <Link
-                                key={link.href}
-                                href={link.href}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all ${isActive
-                                    ? "bg-primary text-white"
-                                    : "hover:bg-primary/5 dark:hover:bg-[var(--bg-card)]"
-                                    }`}
-                                style={!isActive ? { color: 'var(--text-secondary)' } : undefined}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Icon size={18} />
-                                    <span className="text-sm font-medium">{link.label}</span>
-                                    {link.badge && link.badge > 0 && (
-                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-white/20' : 'bg-primary/20 text-primary'
-                                            }`}>
-                                            {link.badge}
-                                        </span>
-                                    )}
-                                </div>
-                                <ChevronRight size={16} className="opacity-40" />
+                            <Link key={link.href} href={link.href} onClick={() => setIsMobileMenuOpen(false)} className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all ${isActive ? "bg-primary text-white" : "hover:bg-primary/5 dark:hover:bg-[var(--bg-card)]"}`} style={!isActive ? { color: 'var(--text-secondary)' } : undefined}>
+                                <div className="flex items-center gap-3"><Icon size={18} /><span className="text-sm font-medium">{link.label}</span>{link.badge && link.badge > 0 && <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-white/20' : 'bg-primary/20 text-primary'}`}>{link.badge}</span>}</div><ChevronRight size={16} className="opacity-40" />
                             </Link>
                         )
                     })}
-
-                    {/* Contact Support */}
-                    {role !== "admin" && (
-                        <button
-                            onClick={handleContactSupport}
-                            disabled={contactingSupport}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-primary hover:bg-primary/10 rounded-xl transition-all disabled:opacity-50"
-                        >
-                            {contactingSupport ? <Loader2 size={18} className="animate-spin" /> : <LifeBuoy size={18} />}
-                            Contact CarMazium Support
-                        </button>
-                    )}
-
-                    {/* Children */}
+                    {role !== "admin" && <button onClick={handleContactSupport} disabled={contactingSupport} className="w-full flex items-center gap-3 px-4 py-3 text-primary hover:bg-primary/10 rounded-xl transition-all disabled:opacity-50">{contactingSupport ? <Loader2 size={18} className="animate-spin" /> : <LifeBuoy size={18} />}Contact CarMazium Support</button>}
                     {children && <div className="pt-2">{children}</div>}
-
-                    {/* Sign Out */}
-                    <button
-                        onClick={handleSignOut}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
-                    >
-                        <LogOut size={18} /> Sign Out
-                    </button>
+                    <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all"><LogOut size={18} /> Sign Out</button>
                 </div>
             </div>
 
-            {/* Desktop Sidebar */}
             <aside className="hidden lg:block w-72 shrink-0 self-start">
                 <div className="glass-card p-5 !sticky top-24">
-                    {/* User Profile */}
                     <div className="flex items-center gap-3 mb-6 p-3 rounded-xl" style={{ background: 'var(--bg-input)' }}>
-                        <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg border border-primary/30">
-                            {(userName || "U").split(" ").filter(Boolean).map(n => n[0]).join("").toUpperCase().slice(0, 2)}
-                        </div>
-                        <div className="overflow-hidden">
-                            <h3 className="font-bold truncate text-sm">{userName}</h3>
-                            <p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{displayType}</p>
-                        </div>
+                        <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-lg border border-primary/30">{(userName || "U").split(" ").filter(Boolean).map(n => n[0]).join("").toUpperCase().slice(0, 2)}</div>
+                        <div className="overflow-hidden"><h3 className="font-bold truncate text-sm">{userName}</h3><p className="text-xs uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{displayType}</p></div>
                     </div>
-
-                    {/* Navigation */}
                     <nav className="space-y-1">
                         {currentLinks.map((link) => {
                             const linkPath = link.href.split('?')[0]
-                            const isActive = pathname === "/dashboard/user" && linkPath === "/dashboard/user"
-                                ? (searchParams.get("tab") === new URL(link.href, window.location.origin).searchParams.get("tab"))
-                                : pathname === linkPath
+                            const isActive = pathname === "/dashboard/user" && linkPath === "/dashboard/user" ? (searchParams.get("tab") === new URL(link.href, window.location.origin).searchParams.get("tab")) : pathname === linkPath
                             const Icon = link.icon
                             return (
-                                <Link
-                                    key={link.href}
-                                    href={link.href}
-                                    className={`flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg text-sm transition-all ${isActive
-                                        ? "bg-primary text-white font-semibold"
-                                        : "hover:bg-primary/5 dark:hover:bg-[var(--bg-card)] hover:text-primary dark:hover:text-white"
-                                        }`}
-                                    style={!isActive ? { color: 'var(--text-muted)' } : undefined}
-                                >
-                                 <div className="flex items-center gap-3 relative">
-                                        <Icon size={18} />
-                                        {link.label}
-                                    </div>
-                                    {link.badge && link.badge > 0 && (
-                                        link.href.includes('tab=offers') ? (
-                                            // Pulsating dot for offers tab
-                                            <span className="relative flex items-center justify-center">
-                                                <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-primary opacity-60" />
-                                                <span className="relative inline-flex items-center justify-center rounded-full bg-primary text-white text-xs font-black min-w-[18px] h-[18px] px-1">
-                                                    {link.badge > 9 ? '9+' : link.badge}
-                                                </span>
-                                            </span>
-                                        ) : (
-                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-white/20' : 'bg-primary/20 text-primary'
-                                                }`}>
-                                                {link.badge}
-                                            </span>
-                                        )
-                                    )}
+                                <Link key={link.href} href={link.href} className={`flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg text-sm transition-all ${isActive ? "bg-primary text-white font-semibold" : "hover:bg-primary/5 dark:hover:bg-[var(--bg-card)] hover:text-primary dark:hover:text-white"}`} style={!isActive ? { color: 'var(--text-muted)' } : undefined}>
+                                    <div className="flex items-center gap-3 relative"><Icon size={18} />{link.label}</div>
+                                    {link.badge && link.badge > 0 && (link.href.includes('tab=offers') ? <span className="relative flex items-center justify-center"><span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-primary opacity-60" /><span className="relative inline-flex items-center justify-center rounded-full bg-primary text-white text-xs font-black min-w-[18px] h-[18px] px-1">{link.badge > 9 ? '9+' : link.badge}</span></span> : <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-white/20' : 'bg-primary/20 text-primary'}`}>{link.badge}</span>)}
                                 </Link>
                             )
                         })}
                     </nav>
-
-                    {/* Admin Switcher */}
-                    {isAdmin && role !== 'admin' && (
-                        <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-default)' }}>
-                            <Link
-                                href="/dashboard/admin"
-                                className="flex items-center gap-3 px-4 py-2.5 text-blue-500 dark:text-blue-400 dark:hover:text-white hover:bg-blue-500/10 rounded-lg transition-all text-sm font-semibold"
-                            >
-                                <Shield size={18} /> Admin Panel
-                            </Link>
-                        </div>
-                    )}
-
-                    {/* Contact Support */}
-                    {role !== 'admin' && (
-                        <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-default)' }}>
-                            <button
-                                onClick={handleContactSupport}
-                                disabled={contactingSupport}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-primary hover:bg-primary/10 rounded-lg transition-all text-sm font-semibold disabled:opacity-50"
-                            >
-                                {contactingSupport ? <Loader2 size={18} className="animate-spin" /> : <LifeBuoy size={18} />}
-                                Contact Support
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Children (e.g., Create Listing button) */}
-                    {children && (
-                        <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-default)' }}>
-                            {children}
-                        </div>
-                    )}
-
-                    {/* Sign Out */}
-                    <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-default)' }}>
-                        <button
-                            onClick={handleSignOut}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all text-sm"
-                            style={{ color: 'var(--text-muted)' }}
-                        >
-                            <LogOut size={18} /> Sign Out
-                        </button>
-                    </div>
+                    {isAdmin && role !== 'admin' && <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-default)' }}><Link href="/dashboard/admin" className="flex items-center gap-3 px-4 py-2.5 text-blue-500 dark:text-blue-400 dark:hover:text-white hover:bg-blue-500/10 rounded-lg transition-all text-sm font-semibold"><Shield size={18} /> Admin Panel</Link></div>}
+                    {role !== 'admin' && <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-default)' }}><button onClick={handleContactSupport} disabled={contactingSupport} className="w-full flex items-center gap-3 px-4 py-2.5 text-primary hover:bg-primary/10 rounded-lg transition-all text-sm font-semibold disabled:opacity-50">{contactingSupport ? <Loader2 size={18} className="animate-spin" /> : <LifeBuoy size={18} />}Contact Support</button></div>}
+                    {children && <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-default)' }}>{children}</div>}
+                    <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-default)' }}><button onClick={handleSignOut} className="w-full flex items-center gap-3 px-4 py-2.5 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all text-sm" style={{ color: 'var(--text-muted)' }}><LogOut size={18} /> Sign Out</button></div>
                 </div>
             </aside>
-
-            {/* Bottom spacing handled by layout.tsx */}
             <div className="hidden" />
         </>
     )
