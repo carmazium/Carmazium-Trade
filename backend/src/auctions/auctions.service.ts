@@ -584,12 +584,15 @@ export class AuctionsService {
             throw new BadRequestException('Only ACTIVE (live) auctions can have a winner assigned');
         }
 
-        const dealer = await this.prisma.user.findUnique({ where: { id: dealerId } });
+        const dealer = await this.prisma.user.findUnique({
+            where: { id: dealerId },
+            include: { dealerProfile: { select: { isVerified: true } } },
+        });
         if (!dealer || dealer.deletedAt) {
             throw new NotFoundException('Dealer not found');
         }
-        if (dealer.role !== 'DEALER') {
-            throw new BadRequestException('Only dealer accounts can be assigned as an auction winner');
+        if (dealer.role !== 'DEALER' || !dealer.dealerProfile?.isVerified) {
+            throw new BadRequestException('Only verified dealer accounts can be assigned as an auction winner');
         }
 
         const sellerId = auction.listing.sellerId;
@@ -641,12 +644,12 @@ export class AuctionsService {
                 }),
                 this.prisma.listing.update({
                     where: { id: listing.id },
-                    data: { status: 'ACTIVE' },
+                    data: { status: 'DRAFT', type: 'AUCTION' },
                 }),
                 this.prisma.sale.deleteMany({ where: { listingId: listing.id, buyerId: winnerId } }),
                 ...(listing.sellerId ? [
-                    this.prisma.sellerProfile.update({
-                        where: { userId: listing.sellerId },
+                    this.prisma.sellerProfile.updateMany({
+                        where: { userId: listing.sellerId, totalSales: { gt: 0 } },
                         data: { totalSales: { decrement: 1 } },
                     }),
                 ] : []),
@@ -656,7 +659,7 @@ export class AuctionsService {
                 userId: winnerId,
                 type: 'AUCTION_WIN_EXPIRED',
                 title: 'Your auction win was cancelled',
-                message: `You didn't pay the £125 buyer fee for "${listing.title}" in time, so the win was cancelled and the listing is back on the market.`,
+                message: `You didn't pay the £125 buyer fee for "${listing.title}" in time, so the win was cancelled. The seller can now update and relist the auction.`,
                 entityType: 'AUCTION',
                 entityId: auction.id,
                 link: `/dashboard/dealer/auctions/won`,
@@ -666,8 +669,8 @@ export class AuctionsService {
                 const notification = await this.notificationsService.create({
                     userId: listing.sellerId,
                     type: 'AUCTION_WIN_EXPIRED',
-                    title: 'Auction sale fell through — relisted',
-                    message: `The winning buyer for "${listing.title}" didn't pay the buyer fee in time, so the sale was cancelled and your listing is active again.`,
+                    title: 'Auction sale fell through — ready to relist',
+                    message: `The winning buyer for "${listing.title}" didn't pay the buyer fee in time. The sale was cancelled and the auction listing is back in draft so you can update the current notes and relist it; its existing HPI report is retained.`,
                     entityType: 'AUCTION',
                     entityId: auction.id,
                     link: `/dashboard/seller/auctions`,
@@ -857,7 +860,7 @@ export class AuctionsService {
                     where: { id: auction.listingId },
                     data: {
                         status: 'DRAFT',
-                        type: 'CLASSIFIED', // Reset type so seller can list it for retail
+                        type: 'AUCTION', // Keep the same auction listing so its HPI can be reused on re-auction
                         linkedListingId: null, // Clear link so seller can re-auction
                     } as any,
                 }),
@@ -897,7 +900,7 @@ export class AuctionsService {
                 userId: winnerId,
                 type: 'AUCTION_WON',
                 title: 'You won the auction!',
-                message: `You won the auction for ${vehicle} with a bid of £${winningAmount.toLocaleString()}. Contact the seller to arrange collection.`,
+                message: `You won the auction for ${vehicle} with a bid of £${winningAmount.toLocaleString()}. Pay the £125 buyer fee within 72 hours to unlock the seller's protected contact details and auction chat, then arrange inspection and collection.`,
                 entityType: 'AUCTION',
                 entityId: auction.id,
                 link: `/dashboard/dealer/auctions/won`,
@@ -916,23 +919,9 @@ export class AuctionsService {
                 });
             }
 
-            // Auto-create chat room between winner and seller
-            if (listing.sellerId && listing.sellerId !== winnerId) {
-                await this.prisma.chatRoom.upsert({
-                    where: {
-                        initiatorId_participantId: {
-                            initiatorId: winnerId,
-                            participantId: listing.sellerId,
-                        },
-                    },
-                    create: {
-                        initiatorId: winnerId,
-                        participantId: listing.sellerId,
-                        listingId: auction.listingId,
-                    },
-                    update: { listingId: auction.listingId },
-                });
-            }
+            // Do not create an auction chat room here. The winning dealer has
+            // not paid the £125 buyer fee yet. ChatService creates/returns the
+            // seller-winner room on demand only after buyerFeePaid is true.
 
             // Email winner and seller
             const [buyer, seller] = await Promise.all([

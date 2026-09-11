@@ -153,22 +153,26 @@ function CheckoutSuccessContent() {
                         {sessionData?.metadata?.type === 'LISTING_FEE'
                             ? 'Submitted for Review'
                             : sessionData?.metadata?.type === 'COMMISSION'
-                            ? 'Buyer Fee Paid!'
+                            ? '£125 Buyer Fee Paid'
                             : sessionData?.metadata?.type === 'KYC_VERIFICATION'
                             ? 'Verification Fee Paid!'
                             : sessionData?.metadata?.type === 'DEPOSIT'
-                            ? 'Deposit Confirmed!'
+                            ? 'Legacy Deposit Record'
+                            : sessionData?.metadata?.type === 'FULL_PAYMENT'
+                            ? 'Legacy Vehicle Payment Record'
                             : 'Payment Successful!'}
                     </h1>
                     <p className="mt-3 text-lg text-gray-300">
                         {sessionData?.metadata?.type === 'LISTING_FEE'
                             ? "Payment confirmed. Your vehicle details are now under review and will be listed shortly — we'll notify you once it's approved."
                             : sessionData?.metadata?.type === 'COMMISSION'
-                            ? 'Your £125 buyer fee is confirmed. Submit your handover proof to release the seller payout.'
+                            ? 'Your £125 auction buyer fee is confirmed. Seller details and chat are now unlocked. Arrange inspection and collection, inspect the vehicle, and if you proceed pay the vehicle purchase price directly to the seller. CarMazium has not received the vehicle purchase money.'
                             : sessionData?.metadata?.type === 'KYC_VERIFICATION'
                             ? 'Your £1 verification fee is confirmed. Our team will review your dealer application shortly.'
                             : sessionData?.metadata?.type === 'DEPOSIT'
-                            ? "Your £500 refundable deposit is confirmed and the seller has been notified. Message them to arrange the rest of the sale — the vehicle price itself is paid directly between you and the seller."
+                            ? "This is confirmation of a historical deposit session created before CarMazium stopped collecting vehicle deposits. New vehicle deposits and purchase-price payments are made directly between buyer and seller."
+                            : sessionData?.metadata?.type === 'FULL_PAYMENT'
+                            ? "This is confirmation of a historical vehicle-payment session. CarMazium no longer creates new full vehicle purchase payments; current vehicle sale funds are paid directly to the seller."
                             : 'Your transaction has been completed securely through Stripe.'}
                     </p>
                 </motion.div>

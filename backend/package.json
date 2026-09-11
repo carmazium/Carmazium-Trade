@@ -39,8 +39,9 @@
     "@prisma/client": "^6.19.2",
     "@socket.io/redis-adapter": "^8.3.0",
     "@supabase/supabase-js": "^2.95.3",
+    "@types/nodemailer": "^8.0.1",
     "axios": "^1.13.5",
-    "bcrypt": "^5.1.1",
+    "bcrypt": "6.0.0",
     "cheerio": "^1.2.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
@@ -53,6 +54,7 @@
     "ioredis": "^5.9.3",
     "nest-winston": "^1.10.2",
     "next-themes": "^0.4.6",
+    "nodemailer": "^10.0.3",
     "openai": "^6.27.0",
     "pdf-lib": "^1.17.1",
     "reflect-metadata": "^0.2.2",
@@ -69,7 +71,7 @@
     "@nestjs/testing": "^11.0.1",
     "@swc/cli": "^0.6.0",
     "@swc/core": "^1.15.11",
-    "@types/bcrypt": "^5.0.2",
+    "@types/bcrypt": "6.0.0",
     "@types/connect-pg-simple": "^7.0.3",
     "@types/express": "^5.0.0",
     "@types/express-session": "^1.18.1",
@@ -116,6 +118,11 @@
     "testEnvironment": "node"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
+  },
+  "overrides": {
+    "multer": "2.3.0",
+    "deepmerge-ts": "8.0.2",
+    "brace-expansion@1.1.12": "1.1.18"
   }
 }

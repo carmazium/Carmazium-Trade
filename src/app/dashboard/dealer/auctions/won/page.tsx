@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
 import {
-    Loader2, Trophy, Car, MessageSquare, CreditCard, CheckCircle2, XCircle,
+    Loader2, Trophy, Car, MessageSquare, CreditCard, CheckCircle2,
     Clock, AlertTriangle, Gavel, Radio, TrendingUp, FileSearch,
     Calendar, Gauge, Fuel, Cog, Palette, Phone, Mail, ShieldCheck, Award, MapPin, Globe, Lock,
 } from "lucide-react"
@@ -41,7 +41,6 @@ type HandoverStage =
     | "fee_due"           // won but hasn't paid the £125 buyer fee yet
     | "in_progress"       // fee paid, handover not yet verified (awaiting proof or under review)
     | "complete"          // admin approved, sellerBonusReleased = true
-    | "denied"            // admin denied — refund on the way (or errored, admin alerted)
 
 function stageFor(a: Auction): HandoverStage {
     if (!a.buyerFeePaid) return "fee_due"
@@ -67,12 +66,6 @@ const STAGE_LABELS: Record<HandoverStage, { label: string; hint: string; icon: R
         hint: "Handover verified and closed.",
         icon: CheckCircle2,
         tint: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
-    },
-    denied: {
-        label: "Refund in progress",
-        hint: "The submitted proof wasn't accepted. £100 of your £125 fee is being refunded to you.",
-        icon: XCircle,
-        tint: "bg-red-500/10 text-red-400 border-red-500/25",
     },
 }
 
@@ -397,7 +390,7 @@ export default function MyBidsPage() {
 
     const grouped = React.useMemo(() => {
         if (!wonAuctions) return null
-        const buckets: Record<HandoverStage, Auction[]> = { fee_due: [], in_progress: [], complete: [], denied: [] }
+        const buckets: Record<HandoverStage, Auction[]> = { fee_due: [], in_progress: [], complete: [] }
         for (const a of wonAuctions) buckets[stageFor(a)].push(a)
         return buckets
     }, [wonAuctions])
@@ -485,20 +478,7 @@ export default function MyBidsPage() {
                                 </section>
                             )}
 
-                            {/* 4. Refund in progress */}
-                            {grouped && grouped.denied.length > 0 && (
-                                <section>
-                                    <div className="flex items-baseline justify-between mb-3 px-1">
-                                        <h2 className="text-sm font-black uppercase tracking-widest">Refund in progress</h2>
-                                        <span className="text-sm text-[var(--text-muted)] font-bold">{grouped.denied.length}</span>
-                                    </div>
-                                    <div className="space-y-3">
-                                        {grouped.denied.map(a => <WonAuctionRow key={a.id} auction={a} />)}
-                                    </div>
-                                </section>
-                            )}
-
-                            {/* 5. Completed — deprioritized, at the bottom */}
+                            {/* 4. Completed — deprioritized, at the bottom */}
                             {grouped && grouped.complete.length > 0 && (
                                 <section>
                                     <div className="flex items-baseline justify-between mb-3 px-1">

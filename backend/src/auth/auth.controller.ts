@@ -185,12 +185,12 @@ export class AuthController {
     }
 
     /**
-     * Send/resend a verification email via Resend (bypasses Supabase's
-     * rate-limited built-in mailer). Safe to call multiple times.
+     * Send/resend a verification email through our own mailer (bypasses
+     * Supabase's rate-limited built-in one). Safe to call multiple times.
      */
     @Post('send-verification')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: 'Send verification email via Resend' })
+    @ApiOperation({ summary: 'Send verification email' })
     @ApiResponse({ status: 200, description: 'Verification email sent' })
     async sendVerification(
         @Body('email') email: string,

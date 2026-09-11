@@ -1,130 +1,34 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
+import { Loader2, Briefcase, AlertCircle, Inbox } from "lucide-react"
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar"
 import { useAuth } from "@/context/AuthContext"
-import { getContractorJobs, updateJobStatus, type ServiceRequest } from "@/lib/listingApi"
-import { Loader2, Briefcase, AlertCircle, CheckCircle, Play, Clock } from "lucide-react"
+import { getJobFeed, getAssignedJobs, formatPence, type ServiceJob } from "@/lib/servicesApi"
+import { JobListCard } from "@/components/services/JobBits"
 
-export default function ServiceJobsPage() {
+export default function ContractorJobsPage() {
     const { user, profile, loading: authLoading } = useAuth()
-    const [jobs, setJobs] = React.useState<ServiceRequest[]>([])
-    const [loading, setLoading] = React.useState(true)
+    const [tab, setTab] = React.useState<"open" | "mine">("open")
+    const [feed, setFeed] = React.useState<ServiceJob[] | null>(null)
+    const [mine, setMine] = React.useState<ServiceJob[] | null>(null)
+    const [notApproved, setNotApproved] = React.useState(false)
     const [error, setError] = React.useState<string | null>(null)
-    const [updatingId, setUpdatingId] = React.useState<string | null>(null)
-
-    const fetchJobs = React.useCallback(async () => {
-        try {
-            setLoading(true)
-            setError(null)
-            const data = await getContractorJobs(1, 50)
-            setJobs(data.data || [])
-        } catch (err) {
-            console.error("Failed to fetch jobs:", err)
-            setError("Could not load jobs")
-        } finally {
-            setLoading(false)
-        }
-    }, [])
-
     React.useEffect(() => {
-        if (!user || authLoading) return
-        fetchJobs()
-    }, [user, authLoading, fetchJobs])
-
-    const handleStatusUpdate = async (jobId: string, newStatus: string) => {
-        try {
-            setUpdatingId(jobId)
-            await updateJobStatus(jobId, newStatus)
-            await fetchJobs()
-        } catch (err) {
-            console.error("Failed to update status:", err)
-        } finally {
-            setUpdatingId(null)
-        }
-    }
-
-    const userName = profile?.firstName ? `${profile.firstName} ${profile.lastName || ""}` : (user?.email?.split('@')[0] || "User")
-
-    if (authLoading || loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            </div>
-        )
-    }
-
-    const statusConfig: Record<string, { color: string; icon: React.ComponentType<{ size?: number; className?: string }>; next?: { label: string; status: string } }> = {
-        PENDING: { color: "bg-amber-500/20 text-amber-400", icon: Clock, next: { label: "Accept", status: "ACCEPTED" } },
-        ACCEPTED: { color: "bg-blue-500/20 text-blue-400", icon: Play, next: { label: "Start Work", status: "IN_PROGRESS" } },
-        IN_PROGRESS: { color: "bg-purple-500/20 text-purple-400", icon: Play, next: { label: "Complete", status: "COMPLETED" } },
-        COMPLETED: { color: "bg-emerald-500/20 text-emerald-400", icon: CheckCircle },
-        CANCELLED: { color: "bg-red-500/20 text-red-400", icon: AlertCircle },
-    }
-
-    return (
-        <div className="min-h-screen pt-20 pb-12">
-            <div className="container mx-auto px-5 flex flex-col lg:flex-row gap-8">
-                <DashboardSidebar role="provider" userName={userName} userType="Service Provider" />
-                <main className="flex-1 space-y-6">
-                    <h1 className="text-3xl font-bold font-heading mb-6">My Jobs</h1>
-
-                    {error && (
-                        <div className="glass-card p-4 border border-red-500/30 flex items-center gap-3 text-red-400">
-                            <AlertCircle size={20} /> {error}
-                        </div>
-                    )}
-
-                    {jobs.length === 0 ? (
-                        <div className="glass-card p-12 text-center text-[var(--text-muted)]">
-                            <Briefcase size={56} className="mx-auto mb-4 opacity-30" />
-                            <p className="text-xl font-medium">No jobs assigned yet</p>
-                            <p className="text-sm mt-2 max-w-md mx-auto">When customers request your services, their jobs will appear here for you to manage.</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {jobs.map(job => {
-                                const config = statusConfig[job.status] || statusConfig.PENDING
-                                const StatusIcon = config.icon
-                                return (
-                                    <div key={job.id} className="glass-card p-6 hover:border-white/20 transition-colors">
-                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-3 mb-2">
-                                                    <h3 className="text-lg font-bold">
-                                                        {job.requester?.firstName || "Customer"} {job.requester?.lastName || ""}
-                                                    </h3>
-                                                    <span className={`text-xs font-bold px-2 py-1 rounded flex items-center gap-1 ${config.color}`}>
-                                                        <StatusIcon size={12} /> {job.status.replaceAll('_', ' ')}
-                                                    </span>
-                                                </div>
-                                                <p className="text-[var(--text-muted)] text-sm">
-                                                    <span className="text-[var(--text-secondary)] font-medium">{job.serviceType.replaceAll('_', ' ')}</span>
-                                                    {job.description && <> — {job.description}</>}
-                                                </p>
-                                                <div className="flex gap-6 mt-2 text-xs text-[var(--text-muted)]">
-                                                    <span>Created: {new Date(job.createdAt).toLocaleDateString()}</span>
-                                                    {job.scheduledDate && <span>Scheduled: {new Date(job.scheduledDate).toLocaleDateString()}</span>}
-                                                    {job.quotedPrice && <span>Quote: £{Number(job.quotedPrice).toLocaleString()}</span>}
-                                                </div>
-                                            </div>
-                                            {config.next && (
-                                                <button
-                                                    onClick={() => handleStatusUpdate(job.id, config.next!.status)}
-                                                    disabled={updatingId === job.id}
-                                                    className="bg-primary text-white font-bold py-2 px-6 rounded shadow-neon hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2 shrink-0"
-                                                >
-                                                    {updatingId === job.id ? <Loader2 size={16} className="animate-spin" /> : config.next.label}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    )}
-                </main>
-            </div>
-        </div>
-    )
+        if (authLoading || !user) return
+        Promise.all([getJobFeed(), getAssignedJobs()]).then(([f,m])=>{setFeed(f);setMine(m)}).catch(e=>{
+            const msg:string=e?.message||""; if(/no approved services|approved service providers/i.test(msg))setNotApproved(true);else setError(msg||"Could not load jobs");setFeed([]);setMine([])
+        })
+    }, [authLoading,user])
+    const userName=profile?.firstName?`${profile.firstName} ${profile.lastName||""}`.trim():user?.email||"Provider"
+    const list=tab==="open"?feed:mine
+    return <div className="min-h-screen pt-20 pb-12"><div className="container mx-auto px-5 flex flex-col lg:flex-row gap-8"><DashboardSidebar role="provider" userName={userName} userType="Service Provider"/><main className="flex-1 space-y-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap"><div><h1 className="text-3xl font-bold font-heading mb-1">Jobs</h1><p className="text-sm text-[var(--text-muted)]">Open jobs in your approved service areas, and the ones you have won.</p></div><div className="flex items-center gap-1 bg-[var(--bg-input)] border border-[var(--border-default)] rounded-xl p-1">{([["open",`Open${feed?` (${feed.length})`:""}`],["mine",`My jobs${mine?` (${mine.length})`:""}`]] as const).map(([k,label])=><button key={k} type="button" onClick={()=>setTab(k)} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors ${tab===k?"bg-primary text-white":"text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}>{label}</button>)}</div></div>
+        {notApproved&&<div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 flex flex-col sm:flex-row sm:items-center gap-4"><AlertCircle size={22} className="text-amber-500 shrink-0"/><div className="flex-1"><p className="font-bold text-sm">No approved service areas yet</p><p className="text-xs text-[var(--text-muted)] mt-0.5">Apply for a service area and connect Stripe. Jobs appear here once CarMazium approves you.</p></div><Link href="/dashboard/service/capabilities" className="text-xs font-black uppercase tracking-widest text-primary hover:underline shrink-0">Apply now →</Link></div>}
+        {error&&<p className="text-red-500 text-sm">{error}</p>}
+        {!list&&!notApproved&&!error&&<div className="flex justify-center py-16"><Loader2 className="animate-spin text-primary"/></div>}
+        {list&&list.length===0&&!notApproved&&<div className="rounded-2xl border border-dashed border-[var(--border-default)] p-12 text-center">{tab==="open"?<Inbox size={30} className="mx-auto text-[var(--text-muted)] mb-3"/>:<Briefcase size={30} className="mx-auto text-[var(--text-muted)] mb-3"/>}<p className="text-sm text-[var(--text-muted)]">{tab==="open"?"No open jobs right now.":"You have not won a job yet. Quote on open jobs to get started."}</p></div>}
+        {list&&list.length>0&&<div className="space-y-3">{list.map(j=>{const myQuote=j.quotes?.[0];const trailing=tab==="open"?(myQuote?<span className="text-xs font-bold text-emerald-500">Your quote: {formatPence(myQuote.amountPence)}</span>:<span className="text-xs font-bold text-primary">{j._count?.quotes??0} quote{(j._count?.quotes??0)===1?"":"s"} so far</span>):j.agreedAmountPence!=null?<span className="text-xs font-bold">{formatPence(j.contractorAmountPence??j.agreedAmountPence)} to you</span>:undefined;return <JobListCard key={j.id} job={j} href={`/dashboard/service/jobs/${j.id}`} trailing={trailing}/>})}</div>}
+    </main></div></div>
 }

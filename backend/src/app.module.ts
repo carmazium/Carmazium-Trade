@@ -1,4 +1,5 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -23,6 +24,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { CsrfMiddleware } from './core/middleware/csrf.middleware';
+import { ListingPrivacyInterceptor } from './core/interceptors/listing-privacy.interceptor';
 import { HealthModule } from './health/health.module';
 import { DvlaModule } from './dvla/dvla.module';
 import { AnalyticsModule } from './analytics/analytics.module';
@@ -34,6 +36,7 @@ import { EmailModule } from './email/email.module';
 import { DamageAnalysisModule } from './damage/damage.module';
 import { HpiModule } from './hpi/hpi.module';
 import { DeliveryModule } from './delivery/delivery.module';
+import { ServicesModule } from './services/services.module';
 import { MarketingModule } from './marketing/marketing.module';
 import { BlogModule } from './blog/blog.module';
 
@@ -76,11 +79,18 @@ import { BlogModule } from './blog/blog.module';
     DamageAnalysisModule,
     HpiModule,
     DeliveryModule,
+    ServicesModule,
     MarketingModule,
     BlogModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ListingPrivacyInterceptor,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
@@ -89,7 +99,3 @@ export class AppModule implements NestModule {
       .forRoutes('*');
   }
 }
-
-
-
-

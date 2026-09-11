@@ -1,5 +1,7 @@
-import { IsEmail, IsString, MinLength, IsOptional, IsEnum } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsOptional, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
+import { SELF_SERVICE_ROLES } from '../self-service-role';
 
 
 export class RegisterDto {
@@ -27,8 +29,8 @@ export class RegisterDto {
     @IsString()
     phone?: string;
 
-    @ApiPropertyOptional({ enum: ['BUYER', 'SELLER', 'ADMIN'], default: 'BUYER' })
+    @ApiPropertyOptional({ enum: SELF_SERVICE_ROLES, default: UserRole.BUYER })
     @IsOptional()
-    @IsEnum(['BUYER', 'SELLER', 'ADMIN'])
-    role?: 'BUYER' | 'SELLER' | 'ADMIN';
+    @IsIn([...SELF_SERVICE_ROLES])
+    role?: UserRole;
 }

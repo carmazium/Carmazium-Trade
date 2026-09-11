@@ -43,12 +43,14 @@ export interface PaymentTransaction {
 // ─── API Functions ──────────────────────────────────────────────────────────
 
 /**
- * Create a Stripe Checkout Session and get the redirect URL.
+ * Create the Stripe Checkout Session for the £125 auction buyer fee.
+ * Vehicle purchase money is never collected by CarMazium; the backend derives
+ * the authoritative fee and verifies the authenticated auction winner.
  */
 export async function createCheckoutSession(
     listingId: string,
     amount: number,
-    type: 'DEPOSIT' | 'FULL_PAYMENT' | 'COMMISSION' = 'FULL_PAYMENT',
+    type: 'COMMISSION' = 'COMMISSION',
     currency = 'gbp',
 ): Promise<CheckoutSessionResult> {
     const data = await apiClient<{ data: CheckoutSessionResult }>('/payments/checkout', {

@@ -14,19 +14,15 @@ export class DbBackupService {
   // Every Sunday at 2 AM UTC
   @Cron('0 2 * * 0')
   async handleWeeklyBackup(): Promise<void> {
-    const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const date = new Date().toISOString().slice(0, 10);
     const filename = `db-backup-${date}.sql.gz`;
 
     try {
-      // 1. Run pg_dump (DATABASE_URL is set on Fly.io at runtime)
       const dumpBuffer = execSync(`pg_dump "${process.env.DATABASE_URL}"`, {
-        maxBuffer: 200 * 1024 * 1024, // 200 MB safety ceiling
+        maxBuffer: 200 * 1024 * 1024,
       });
 
-      // 2. gzip in-memory — avoids ephemeral disk writes (Fly.io restarts wipe disk)
       const compressed = gzipSync(dumpBuffer);
-
-      // 3. Upload to private 'backups' bucket via service role key (bypasses RLS)
       const supabase = createClient(
         process.env.SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -41,14 +37,19 @@ export class DbBackupService {
 
       if (error) throw new Error(`Storage upload failed: ${error.message}`);
 
-      // 4. Retention cleanup: delete files older than 30 days
       await this.pruneOldBackups(supabase);
-
       this.logger.log(`[DbBackup] Weekly backup complete: ${filename}`);
     } catch (err: any) {
       this.logger.error(`[DbBackup] FAILED: ${err.message}`);
+
+      const alertEmail = process.env.ADMIN_BACKUP_EMAIL;
+      if (!alertEmail) {
+        this.logger.error('[DbBackup] ADMIN_BACKUP_EMAIL is not configured; backup failure email was not sent.');
+        return;
+      }
+
       await this.emailService.sendBrandedEmail({
-        to: process.env.ADMIN_BACKUP_EMAIL || 'airafadil619@gmail.com',
+        to: alertEmail,
         subject: 'ALERT: CarMazium weekly DB backup failed',
         bodyHtml: `<p>The weekly database backup cron failed at ${new Date().toISOString()}.</p>
                    <p><strong>Error:</strong> ${err.message}</p>`,

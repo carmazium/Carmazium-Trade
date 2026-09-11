@@ -294,8 +294,11 @@ const SECTIONS: LegalSection[] = [
         num: 20,
         title: "£125 Auction Buyer Fee",
         blocks: [
-            p("Fee. Where a Vehicle is successfully purchased through a CarMazium Auction, the Successful Auction Buyer must pay CarMazium the applicable Auction Buyer Fee. The current fee is £125 per successfully purchased Auction Vehicle, unless another amount is clearly displayed before the Dealer bids."),
-            p("Separate from Purchase Price. The £125 fee is payable to CarMazium. The Vehicle Purchase Price is payable directly to the Seller. These are completely separate payments."),
+            p("Fee. The Successful Auction Buyer pays CarMazium one total Auction Buyer Fee of £125. The £125 consists of a £100 refundable portion and a £25 CarMazium platform fee."),
+            p("£100 refundable portion. The £100 portion is refundable only where CarMazium determines that a genuine qualifying Auction sale has failed or been cancelled before successful Handover. A rejected or unclear Handover Evidence submission does not by itself mean the Vehicle sale failed and does not trigger a Buyer refund; the Seller may be asked to resubmit clearer evidence."),
+            p("£25 platform fee. The £25 platform-fee portion is non-refundable in all cases, subject always to statutory rights that cannot lawfully be excluded."),
+            p("Contact unlock. The Successful Auction Buyer must pay the £125 Auction Buyer Fee before the Seller's protected contact details and Auction chat are unlocked."),
+            p("Separate from Purchase Price. The £125 fee is payable to CarMazium. The Vehicle Purchase Price is payable directly to the Seller after inspection and agreement. CarMazium does not receive, hold or process the Vehicle Purchase Price."),
             p("Retail exemption. The £125 Auction Buyer Fee does not apply to Vehicles purchased through Retail Listings."),
             p("VAT. Where VAT is legally chargeable on a CarMazium fee, the Platform or invoice will state the applicable VAT treatment."),
         ],
@@ -304,7 +307,7 @@ const SECTIONS: LegalSection[] = [
         num: 21,
         title: "Winning Dealer Contact",
         blocks: [
-            p("After a successful Auction, CarMazium may provide the parties with the contact information necessary to complete the transaction. The successful Dealer must make reasonable efforts to contact the Seller promptly. Seller and Dealer should cooperate in arranging collection and inspection."),
+            p("After the successful Dealer has paid the £125 Auction Buyer Fee, CarMazium may unlock the Seller contact information and Auction chat necessary to complete the transaction. The successful Dealer should then contact the Seller promptly and the parties should cooperate in arranging inspection and collection. Seller contact details remain protected until the fee is confirmed."),
         ],
     },
     {
@@ -515,6 +518,8 @@ const SECTIONS: LegalSection[] = [
         title: "Vehicle History Data",
         blocks: [
             p("CarMazium may display information obtained from third-party providers, such as MOT information, Vehicle specification, finance indicators, valuation data, insurance category, and history information. Third-party data may contain errors or delays. CarMazium does not warrant that third-party databases are complete or error-free."),
+            p("Mandatory HPI. Every Vehicle Listing must have a CarMazium HPI/history-report request associated with it before the Listing can be approved to go live. A report may still be marked PENDING while CarMazium prepares it; a pending report does not by itself delay publication once the Listing has otherwise passed review."),
+            p("HPI on relisting. An Auction relist may reuse the existing HPI report for that Vehicle where CarMazium permits reuse, provided the Seller updates all current buyer-facing notes, condition disclosures and other material information. A Retail Listing or Retail relist requires a fresh HPI report and does not inherit an Auction report automatically."),
         ],
     },
     {
@@ -622,7 +627,7 @@ const SECTIONS: LegalSection[] = [
             p("CarMazium may change future Platform fees. A new fee does not retrospectively alter a transaction already agreed. The applicable fee should be displayed before a user becomes liable to pay it. Current principal fees are:"),
             ul([
                 "Auction Seller Listing Fee: £0",
-                "Auction Buyer Fee: £125",
+                "Auction Buyer Fee: £125 total (£100 refundable only for a qualifying genuine failed/cancelled Auction sale; £25 platform fee non-refundable in all cases, subject to statutory rights)",
                 "Retail Listing Fee: £1",
                 "Retail Buyer Fee: £0",
                 "Eligible Auction Seller Incentive: £100 after approved successful Handover",
@@ -634,13 +639,15 @@ const SECTIONS: LegalSection[] = [
         title: "Optional Paid Services",
         blocks: [
             p("Any optional service that carries an additional charge must be clearly identified. Users will not be charged for optional extras without appropriate agreement."),
+            p("Trade Exchange Delivery & Recovery is an optional transport-service marketplace. CarMazium may collect payment for the transport service itself and currently retains a 9% service marketplace fee, with the balance due to the approved contractor after completion subject to the applicable service/dispute process. This transport-service payment is separate from the Vehicle Purchase Price and does not mean CarMazium receives or holds Vehicle sale funds."),
         ],
     },
     {
         num: 58,
         title: "Refunds of Platform Fees",
         blocks: [
-            p("Any entitlement to refund of a CarMazium Platform fee will depend on applicable consumer law, whether the service has begun or been supplied, the reason for cancellation, the specific service purchased, and any separate promotion or refund terms. Nothing in these Terms removes mandatory statutory rights."),
+            p("Auction Buyer Fee refund rule. Of the £125 Auction Buyer Fee, only the £100 refundable portion may be returned where CarMazium confirms a genuine qualifying Auction sale failed or was cancelled. The £25 platform-fee portion is non-refundable in all cases, subject to statutory rights that cannot lawfully be excluded. Rejecting unclear Handover Evidence alone does not trigger a refund."),
+            p("Refunds for other CarMazium services depend on the specific service, applicable consumer law, whether the service has begun or been supplied, and any separate service or promotion terms. Nothing in these Terms removes mandatory statutory rights."),
         ],
     },
     {
@@ -668,7 +675,7 @@ const SECTIONS: LegalSection[] = [
         num: 62,
         title: "Sharing Contact Details",
         blocks: [
-            p("CarMazium may share appropriate contact details between users where reasonably necessary to complete a transaction. Recipients must use such details only for legitimate transaction purposes or otherwise lawfully."),
+            p("For Retail Listings, Seller contact information may be displayed publicly as part of the Retail service. For Auctions, protected Seller contact details and Auction chat are unlocked to the successful Dealer only after the £125 Auction Buyer Fee has been paid. Recipients must use contact details only for legitimate transaction purposes or otherwise lawfully."),
         ],
     },
     {
@@ -791,6 +798,8 @@ const SECTIONS: LegalSection[] = [
                 "List for Auction FREE — no Seller Auction Listing Fee.",
                 "Dealers bid — approved Dealers compete.",
                 "Dealer wins — the successful bid determines the Buyer, subject to these Terms.",
+                "Winning Dealer pays £125 Auction Buyer Fee — £100 is the qualifying failed-sale refundable portion and £25 is the non-refundable platform fee.",
+                "Seller details and Auction chat unlock after the fee is confirmed.",
                 "Dealer contacts Seller — collection and inspection are arranged directly.",
                 "Dealer inspects Vehicle — Dealer confirms Vehicle is materially as described.",
                 "Dealer pays Seller directly — CarMazium never handles the Purchase Price.",
@@ -808,7 +817,7 @@ const SECTIONS: LegalSection[] = [
         title: "Auction Buyer Process Summary",
         blocks: [
             p("For Dealers: browse stock → review Vehicle information → bid → win Auction → pay CarMazium £125 Auction Buyer Fee → contact Seller → inspect Vehicle → pay Seller directly → collect Vehicle → complete Handover."),
-            p("The £125 fee is payable to CarMazium. The Vehicle Purchase Price is payable to the Seller."),
+            p("The £125 fee is payable to CarMazium before protected Seller details/chat unlock. £100 is refundable only if a genuine qualifying Auction sale fails or is cancelled; £25 is the non-refundable platform fee, subject to statutory rights. The Vehicle Purchase Price is payable directly to the Seller after inspection/agreement."),
         ],
     },
     {

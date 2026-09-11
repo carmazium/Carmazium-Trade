@@ -21,6 +21,7 @@ import {
 import { BidsService } from './bids.service';
 import { CreateBidDto } from './dto/create-bid.dto';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
+import { VerifiedDealerGuard } from '../auth/guards/verified-dealer.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { StandardResponse, PaginatedResponse } from '../listings/dto/response.dto';
 
@@ -29,14 +30,11 @@ import { StandardResponse, PaginatedResponse } from '../listings/dto/response.dt
 export class BidsController {
     constructor(private readonly bidsService: BidsService) { }
 
-    /**
-     * Place a bid on an auction listing.
-     */
     @Post()
-    @UseGuards(SessionAuthGuard)
+    @UseGuards(SessionAuthGuard, VerifiedDealerGuard)
     @ApiCookieAuth()
     @HttpCode(HttpStatus.CREATED)
-    @ApiOperation({ summary: 'Place a bid on an auction listing' })
+    @ApiOperation({ summary: 'Place a bid on an auction listing (verified dealers only)' })
     @ApiResponse({ status: 201, description: 'Bid placed successfully' })
     @ApiResponse({ status: 400, description: 'Invalid bid or listing not an auction' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -48,9 +46,6 @@ export class BidsController {
         return new StandardResponse(bid);
     }
 
-    /**
-     * Get current user's bids.
-     */
     @Get('my')
     @UseGuards(SessionAuthGuard)
     @ApiCookieAuth()
@@ -64,18 +59,10 @@ export class BidsController {
     ) {
         const pageNum = parseInt(page || '1');
         const limitNum = parseInt(limit || '20');
-
-        const { data, total } = await this.bidsService.findMyBids(
-            user.id,
-            pageNum,
-            limitNum,
-        );
+        const { data, total } = await this.bidsService.findMyBids(user.id, pageNum, limitNum);
         return new PaginatedResponse(data, total, pageNum, limitNum);
     }
 
-    /**
-     * Get buyer dashboard statistics.
-     */
     @Get('stats')
     @UseGuards(SessionAuthGuard)
     @ApiCookieAuth()
@@ -86,19 +73,19 @@ export class BidsController {
     }
 
     /**
-     * Get all bids for a specific listing (public).
+     * Bid history is trade-sensitive information. A retail visitor must never
+     * be able to learn dealer cost prices or bidder identities by calling this
+     * endpoint directly. VerifiedDealerGuard also lets ADMIN through.
      */
     @Get('listing/:listingId')
-    @ApiOperation({ summary: 'Get all bids for a listing' })
+    @UseGuards(SessionAuthGuard, VerifiedDealerGuard)
+    @ApiCookieAuth()
+    @ApiOperation({ summary: 'Get all bids for a listing (verified dealers/admin only)' })
     async findByListing(@Param('listingId') listingId: string) {
         const bids = await this.bidsService.findByListing(listingId);
         return new StandardResponse(bids);
     }
 
-    /**
-     * Cancel a bid within the 24-hour cancellation window.
-     * Only the bid owner can cancel, and only while the auction is ACTIVE.
-     */
     @Patch(':id/cancel')
     @UseGuards(SessionAuthGuard)
     @ApiCookieAuth()

@@ -220,6 +220,18 @@ export class AdminController {
         return new StandardResponse({ success: true });
     }
 
+    @Post('auctions/:id/refund-failed-sale')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Cancel a genuine failed auction sale, refund £100 of the £125 buyer fee, and retain the £25 platform fee' })
+    @ApiParam({ name: 'id', description: 'Auction UUID' })
+    async refundFailedAuctionSale(
+        @Param('id') id: string,
+        @Body('reason') reason: string,
+    ): Promise<StandardResponse<any>> {
+        const result = await this.adminService.refundFailedAuctionSale(id, reason);
+        return new StandardResponse(result);
+    }
+
     // ── Handovers ─────────────────────────────────────────────────────────────
 
     @Get('handovers/pending')
@@ -240,7 +252,7 @@ export class AdminController {
 
     @Post('handovers/:auctionId/deny')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: 'Deny a handover proof and refund buyer £100' })
+    @ApiOperation({ summary: 'Reject unclear handover proof and allow seller resubmission; no buyer refund' })
     @ApiParam({ name: 'auctionId' })
     async denyHandover(@Param('auctionId') auctionId: string): Promise<StandardResponse<any>> {
         const result = await this.adminService.denyHandover(auctionId);

@@ -774,7 +774,13 @@ export class ListingsService {
                 updateListingDto.status === 'SOLD' ? 'SOLD' : 'DRAFT';
         }
         if (updateListingDto.listingType) {
-            updateData.type = updateListingDto.listingType === 'AUCTION' ? 'AUCTION' : 'CLASSIFIED';
+            const targetType = updateListingDto.listingType === 'AUCTION' ? 'AUCTION' : 'CLASSIFIED';
+            if (listing.type === 'AUCTION' && targetType === 'CLASSIFIED') {
+                throw new BadRequestException(
+                    'Retail requires a new listing and a fresh HPI/history report. Create a new Retail Listing instead of converting this Auction listing.',
+                );
+            }
+            updateData.type = targetType;
         }
         // DVLA extended fields
         if (updateListingDto.motStatus !== undefined) updateData.motStatus = updateListingDto.motStatus;
@@ -892,6 +898,11 @@ export class ListingsService {
                 'This listing has not been approved yet. Submit it for review from the listing editor instead.',
             );
         }
+        if (status === 'ACTIVE' && listing.type === 'CLASSIFIED' && ['SOLD', 'WITHDRAWN', 'OFFER_ACCEPTED'].includes(listing.status)) {
+            throw new BadRequestException(
+                'Retail relisting requires a new Retail Listing and a fresh HPI/history report. Create a new listing instead of reactivating this one.',
+            );
+        }
 
         // For SOLD transitions we wrap the listing update + Sale insert in a transaction
         // so total earnings can never drift from the listings.status state.
@@ -958,6 +969,16 @@ export class ListingsService {
         if (listing.images.length < 10) {
             throw new BadRequestException(
                 `Listings require at least 10 photos before publishing. You have ${listing.images.length}.`,
+            );
+        }
+
+        const mandatoryHpi = await this.prisma.hpiReport.findUnique({
+            where: { listingId: id },
+            select: { id: true, status: true },
+        });
+        if (!mandatoryHpi) {
+            throw new BadRequestException(
+                'A HPI/history report request is required before this listing can be submitted for review.',
             );
         }
 
@@ -1269,6 +1290,8 @@ export class ListingsService {
         if (source.sellerId !== userId) throw new ForbiddenException('You do not own this listing');
         if (source.type !== 'CLASSIFIED') throw new BadRequestException('Source listing must be of type CLASSIFIED');
         if ((source as any).linkedListingId) throw new BadRequestException('This listing already has a linked auction listing');
+        const sourceHpi = await this.prisma.hpiReport.findUnique({ where: { listingId } });
+        if (!sourceHpi) throw new BadRequestException('The Retail Listing must have its HPI/history report before it can also be listed at Auction.');
         if (dto.reservePrice > Number(source.price)) {
             throw new BadRequestException(
                 `Reserve price (£${dto.reservePrice.toLocaleString('en-GB')}) cannot exceed the retail listing price (£${Number(source.price).toLocaleString('en-GB')}). Lower the reserve or raise the retail price first.`,
@@ -1296,7 +1319,7 @@ export class ListingsService {
                 images: source.images,
                 videoUrls: source.videoUrls,
                 type: 'AUCTION',
-                status: 'ACTIVE',
+                status: 'PENDING_REVIEW',
                 description: source.description,
                 slug,
                 make: source.make, model: source.model, year: source.year, mileage: source.mileage,
@@ -1330,6 +1353,27 @@ export class ListingsService {
                 writeOffCategory: source.writeOffCategory,
                 linkedListingId: listingId,
             } as any,
+        });
+
+        await this.prisma.hpiReport.create({
+            data: {
+                listingId: auctionListing.id,
+                vrm: sourceHpi.vrm,
+                data: sourceHpi.data ?? undefined,
+                isClear: sourceHpi.isClear,
+                purchasedAt: sourceHpi.purchasedAt,
+                transactionId: null,
+                status: sourceHpi.status,
+                source: sourceHpi.source,
+                reportData: sourceHpi.reportData ?? undefined,
+                pdfData: sourceHpi.pdfData ?? undefined,
+                pdfFileName: sourceHpi.pdfFileName,
+                pdfSizeBytes: sourceHpi.pdfSizeBytes,
+                pdfUploadedAt: sourceHpi.pdfUploadedAt,
+                preparedById: sourceHpi.preparedById,
+                preparedAt: sourceHpi.preparedAt,
+                reminderSentAt: sourceHpi.reminderSentAt,
+            },
         });
 
         const auction = await this.prisma.auction.create({

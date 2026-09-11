@@ -193,7 +193,7 @@ enum VehicleCondition {
 
 /// Insurance write-off category — separate from general vehicle condition
 enum WriteOffCategory {
-  NONE  /// Not a write-off
+  NONE /// Not a write-off
   CAT_S /// Structural damage, repaired — can be re-registered; retail & auction
   CAT_N /// Non-structural damage, repaired — can be re-registered; retail & auction
   CAT_A /// Structural write-off, cannot be re-registered — AUCTION ONLY
@@ -271,75 +271,145 @@ enum DeliveryStatus {
   @@map("delivery_status")
 }
 
+// ── Trade Exchange service marketplace ───────────────────────────────────────
+// Customers post jobs; approved contractors quote; the customer accepts one and
+// pays through the platform; the contractor is paid out on completion. Design
+// notes and the API surface live in docs/TRADE_EXCHANGE_SERVICES.md.
+
+/// Which Trade Exchange service area a job or capability belongs to.
+/// DELIVERY covers both delivery and recovery (see ServiceJob.isRecovery).
+/// FINANCE and WARRANTY are enquiry-based rather than job-based and get their
+/// own lead tables in a later phase; they are in the enum now so a contractor
+/// capability can be recorded for them without a migration.
+enum ServiceType {
+  DELIVERY
+  INSPECTION
+  FINANCE
+  WARRANTY
+
+  @@map("service_type")
+}
+
+/// Whether a contractor may take work in a given service area. Approval is an
+/// admin decision, per contractor per service — "approved transport businesses"
+/// in the product copy means exactly this row being APPROVED.
+enum CapabilityStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+
+  @@map("capability_status")
+}
+
+enum ServiceJobStatus {
+  OPEN /// accepting quotes
+  ACCEPTED /// customer chose a quote; awaiting payment
+  PAID /// customer paid; contractor may begin
+  IN_PROGRESS /// contractor started
+  COMPLETED /// contractor marked done; customer confirms (or 48h auto)
+  RELEASED /// payout transferred to contractor — terminal
+  CANCELLED /// terminal
+  EXPIRED /// no accepted quote before expiresAt — terminal
+  DISPUTED /// frozen for admin
+
+  @@map("service_job_status")
+}
+
+enum ServiceQuoteStatus {
+  ACTIVE
+  ACCEPTED
+  DECLINED /// another quote was accepted
+  WITHDRAWN /// contractor pulled it
+  EXPIRED /// job closed without acceptance
+
+  @@map("service_quote_status")
+}
+
+enum ServicePaymentStatus {
+  PENDING /// checkout session created
+  PAID /// customer's funds captured by the platform
+  RELEASED /// contractor's share transferred
+  REFUNDED
+  FAILED
+
+  @@map("service_payment_status")
+}
 
 // ============================================================================
 // USER MANAGEMENT & PROFILES
 // ============================================================================
 
 model User {
-  id              String    @id @default(uuid())
-  email           String    @unique
-  passwordHash    String
-  role            UserRole  @default(BUYER)
-  firstName       String?
-  lastName        String?
-  phone           String?
-  profileImage    String?
-  isEmailVerified  Boolean   @default(false)
-  isPhoneVerified  Boolean   @default(false)
-  isAddressVerified Boolean  @default(false)
-  addressVerifiedAt DateTime?
-  loginAttempts    Int       @default(0)
-  lockoutUntil     DateTime?
-  stripeCustomerId               String?   @unique
-  stripeConnectAccountId         String?   @unique
-  stripeConnectOnboardingComplete Boolean  @default(false)
-  bankAccountName               String?
-  bankSortCode                  String?
-  bankAccountNumber             String?
-  payoutPreference              String?   @default("STRIPE")
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  deletedAt        DateTime?
+  id                              String    @id @default(uuid())
+  email                           String    @unique
+  passwordHash                    String
+  role                            UserRole  @default(BUYER)
+  firstName                       String?
+  lastName                        String?
+  phone                           String?
+  profileImage                    String?
+  isEmailVerified                 Boolean   @default(false)
+  isPhoneVerified                 Boolean   @default(false)
+  isAddressVerified               Boolean   @default(false)
+  addressVerifiedAt               DateTime?
+  loginAttempts                   Int       @default(0)
+  lockoutUntil                    DateTime?
+  stripeCustomerId                String?   @unique
+  stripeConnectAccountId          String?   @unique
+  stripeConnectOnboardingComplete Boolean   @default(false)
+  bankAccountName                 String?
+  bankSortCode                    String?
+  bankAccountNumber               String?
+  payoutPreference                String?   @default("STRIPE")
+  createdAt                       DateTime  @default(now())
+  updatedAt                       DateTime  @updatedAt
+  deletedAt                       DateTime?
 
   // Relations
-  dealerProfile           DealerProfile?
-  dealerStaffMemberships  DealerStaff[]
-  contractorProfile       ContractorProfile?
-  financePartnerProfile   PartnerProfile?      @relation("FinancePartner")
-  insurancePartnerProfile PartnerProfile?      @relation("InsurancePartner")
-  sellerProfile           SellerProfile?
-  listings                Listing[]
-  bids                    Bid[]
-  serviceRequests         ServiceRequest[]
-  financeApplications     FinanceApplication[]
-  insuranceQuotes         InsuranceQuote[]
-  transactions            Transaction[]
-  chatRoomsAsInitiator    ChatRoom[]           @relation("Initiator")
-  chatRoomsAsParticipant  ChatRoom[]           @relation("Participant")
-  messages                Message[]
-  notifications           Notification[]
-  watchlistItems          WatchlistItem[]
-  sellerReviewsGiven      SellerReview[]       @relation("ReviewerRelation")
-  analyticsEvents         AnalyticsEvent[]
-  featuredBoosts          FeaturedBoost[]
-  offers                  Offer[]
-  addressVerifications    AddressVerification[]
-  assignedLeads           Lead[]               @relation("AssignedAgent")
-  salesAsSeller           Sale[]               @relation("SellerSales")
-  purchasesAsBuyer        Sale[]               @relation("BuyerPurchases")
-  offersReceived          Offer[]              @relation("SellerOffers")
-  wonAuctions             Auction[]            @relation("AuctionWinner")
-  deliveryRequestsAsBuyer  DeliveryRequest[] @relation("DeliveryBuyer")
-  deliveryRequestsAsSeller DeliveryRequest[] @relation("DeliverySeller")
-  hpiReportsPrepared       HpiReport[]       @relation("HpiReportsPrepared")
+  dealerProfile            DealerProfile?
+  dealerStaffMemberships   DealerStaff[]
+  contractorProfile        ContractorProfile?
+  financePartnerProfile    PartnerProfile?         @relation("FinancePartner")
+  insurancePartnerProfile  PartnerProfile?         @relation("InsurancePartner")
+  sellerProfile            SellerProfile?
+  listings                 Listing[]
+  bids                     Bid[]
+  serviceRequests          ServiceRequest[]
+  financeApplications      FinanceApplication[]
+  insuranceQuotes          InsuranceQuote[]
+  transactions             Transaction[]
+  chatRoomsAsInitiator     ChatRoom[]              @relation("Initiator")
+  chatRoomsAsParticipant   ChatRoom[]              @relation("Participant")
+  messages                 Message[]
+  notifications            Notification[]
+  watchlistItems           WatchlistItem[]
+  sellerReviewsGiven       SellerReview[]          @relation("ReviewerRelation")
+  analyticsEvents          AnalyticsEvent[]
+  featuredBoosts           FeaturedBoost[]
+  offers                   Offer[]
+  addressVerifications     AddressVerification[]
+  assignedLeads            Lead[]                  @relation("AssignedAgent")
+  salesAsSeller            Sale[]                  @relation("SellerSales")
+  purchasesAsBuyer         Sale[]                  @relation("BuyerPurchases")
+  offersReceived           Offer[]                 @relation("SellerOffers")
+  wonAuctions              Auction[]               @relation("AuctionWinner")
+  deliveryRequestsAsBuyer  DeliveryRequest[]       @relation("DeliveryBuyer")
+  deliveryRequestsAsSeller DeliveryRequest[]       @relation("DeliverySeller")
+  hpiReportsPrepared       HpiReport[]             @relation("HpiReportsPrepared")
   hpiReportEmailRequests   HpiReportEmailRequest[] @relation("HpiReportEmailRequests")
 
-  notifyOnSale    Boolean @default(true)
+  notifyOnSale      Boolean @default(true)
   showPublicProfile Boolean @default(true)
-  location        String?
-  postcode        String?
-  preferences     Json?
+  location          String?
+  postcode          String?
+  preferences       Json?
+
+  // Trade Exchange service marketplace
+  serviceJobsAsCustomer     ServiceJob[]           @relation("ServiceJobCustomer")
+  serviceQuotesSubmitted    ServiceQuote[]         @relation("ServiceQuoteSubmitter")
+  servicePaymentsAsCustomer ServicePayment[]       @relation("ServicePaymentCustomer")
+  capabilityReviews         ContractorCapability[] @relation("CapabilityReviewer")
 
   @@index([role])
   @@index([createdAt])
@@ -416,56 +486,55 @@ model DealerProfile {
   updatedAt          DateTime  @updatedAt
   deletedAt          DateTime?
 
-  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  staff DealerStaff[]
-  leads Lead[]
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staff   DealerStaff[]
+  leads   Lead[]
   invites DealerInvite[]
-  kyc   DealerKyc?
+  kyc     DealerKyc?
 
   @@index([userId])
   @@map("dealer_profiles")
 }
 
 model DealerKyc {
-  id                         String        @id @default(uuid())
-  dealerProfileId            String        @unique
+  id                         String       @id @default(uuid())
+  dealerProfileId            String       @unique
   // Existing rows predate this column and are all limited companies, so the
   // default backfills them correctly.
-  businessType               BusinessType  @default(PRIVATE_LIMITED)
+  businessType               BusinessType @default(PRIVATE_LIMITED)
   companyHouseName           String
   representativeName         String
   representativePosition     String
   vatNumber                  String
-  vatProof                   String?       // Optional URL to stored VAT proof image
+  vatProof                   String? // Optional URL to stored VAT proof image
   companyRegistrationNumber  String
-  companyRegistrationProof   String?       // Optional URL to stored Company House cert
+  companyRegistrationProof   String? // Optional URL to stored Company House cert
   personOfSignificantControl String
   directorName               String
-  directorIdProof            String?       // Optional URL to stored Director ID photo
-  proofOfAddress             String?       // Sole traders only — utility bill / bank statement
+  directorIdProof            String? // Optional URL to stored Director ID photo
+  proofOfAddress             String? // Sole traders only — utility bill / bank statement
   businessWebsite            String
   businessRegisteredAddress  String
   tradingAddress             String?
   googleReviewsLink          String?
   paymentReference           String?
-  paymentScreenshot          String?       // Optional URL to stored image
-  stripePaymentIntentId      String?       // Populated after confirmed £1 KYC charge
-  stripeCheckoutSessionId    String?       @unique // Stripe Checkout Session ID, for webhook reconciliation
-  stripeChargedAt            DateTime?     // Timestamp of confirmed charge
-  status                     KycStatus     @default(PENDING)
-  documentStatuses           Json?         // Granular field status: Map of field name to { status: KycStatus, note: string }
-  submittedAt                DateTime      @default(now())
+  paymentScreenshot          String? // Optional URL to stored image
+  stripePaymentIntentId      String? // Populated after confirmed £1 KYC charge
+  stripeCheckoutSessionId    String?      @unique // Stripe Checkout Session ID, for webhook reconciliation
+  stripeChargedAt            DateTime? // Timestamp of confirmed charge
+  status                     KycStatus    @default(PENDING)
+  documentStatuses           Json? // Granular field status: Map of field name to { status: KycStatus, note: string }
+  submittedAt                DateTime     @default(now())
   reviewedAt                 DateTime?
-  createdAt                  DateTime      @default(now())
-  updatedAt                  DateTime      @updatedAt
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
 
-  dealerProfile              DealerProfile @relation(fields: [dealerProfileId], references: [id], onDelete: Cascade)
+  dealerProfile DealerProfile @relation(fields: [dealerProfileId], references: [id], onDelete: Cascade)
 
   @@index([dealerProfileId])
   @@index([status])
   @@map("dealer_kycs")
 }
-
 
 model DealerInvite {
   id              String     @id @default(uuid())
@@ -534,6 +603,11 @@ model Lead {
 model ContractorProfile {
   id             String    @id @default(uuid())
   userId         String    @unique
+  /// Trading name shown to customers on quotes. A transport firm quotes as
+  /// "Kent Vehicle Transport", not as the owner's first name.
+  businessName   String?
+  /// Business contact number, revealed to the customer on acceptance.
+  phone          String?
   serviceTypes   String[] // e.g., ["Detailing", "Mechanic", "Pre-purchase Inspection"]
   rating         Float     @default(0)
   totalReviews   Int       @default(0)
@@ -545,6 +619,12 @@ model ContractorProfile {
 
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   serviceRequests ServiceRequest[]
+
+  // Trade Exchange service marketplace
+  capabilities    ContractorCapability[]
+  serviceJobs     ServiceJob[]
+  serviceQuotes   ServiceQuote[]
+  servicePayments ServicePayment[]
 
   @@index([userId])
   @@map("contractor_profiles")
@@ -667,27 +747,27 @@ model Listing {
   isLegalRegisteredKeeper  Boolean?
   writeOffCategory         WriteOffCategory? @default(NONE)
   // Extended vehicle details (seller-supplied)
-  variant                  String?   // Model variant/trim, e.g. "M Sport", "GT Line"
-  driveType                String?   // FWD, RWD, AWD, 4WD
-  numberOfKeys             Int?      // Number of keys included
-  serviceHistory           String?   // Full Main Dealer, Full Independent, Partial, None
-  owners                   String?   // Number of previous keepers: "1", "2", "3+"
+  variant                  String? // Model variant/trim, e.g. "M Sport", "GT Line"
+  driveType                String? // FWD, RWD, AWD, 4WD
+  numberOfKeys             Int? // Number of keys included
+  serviceHistory           String? // Full Main Dealer, Full Independent, Partial, None
+  owners                   String? // Number of previous keepers: "1", "2", "3+"
   isDepartedSale           Boolean?
   departedRelationship     String?
-  notOwnerRelationship     String?   // Relationship to the vehicle's legal registered keeper, when the seller is not the keeper
-  torqueNm                 Int?      // Torque in Nm
-  topSpeedMph              Int?      // Top speed in mph
-  zeroTo60Mph              Float?    // 0-60 mph time in seconds
-  combinedMpg              Float?    // Combined fuel economy MPG
-  extraUrbanMpg            Float?    // Extra urban MPG
+  notOwnerRelationship     String? // Relationship to the vehicle's legal registered keeper, when the seller is not the keeper
+  torqueNm                 Int? // Torque in Nm
+  topSpeedMph              Int? // Top speed in mph
+  zeroTo60Mph              Float? // 0-60 mph time in seconds
+  combinedMpg              Float? // Combined fuel economy MPG
+  extraUrbanMpg            Float? // Extra urban MPG
   // Exterior grade — 1 (best) to 5 (worst), Motorway-style. Seller-supplied. Rendered on cards.
-  exteriorGrade            Int?      @db.SmallInt
+  exteriorGrade            Int?              @db.SmallInt
   // Attention attribute — buyer-facing label shown as a ribbon on the vehicle card
   bannerLabel              String?
 
   // Admin review — set when status transitions to/from PENDING_REVIEW
-  rejectionReason          String?
-  reviewedAt               DateTime?
+  rejectionReason String?
+  reviewedAt      DateTime?
 
   // Cross-channel link — set when this listing is simultaneously available in both auction and retail
   linkedListingId String?
@@ -699,9 +779,9 @@ model Listing {
   importedSource  String? // AUTOTRADER | CARGURUS | CARWOW
 
   // Phase 15: Delivery
-  deliveryAvailable       Boolean   @default(false)
-  deliveryPricePerMile    Decimal?  @db.Decimal(10, 2)
-  deliveryMaxMiles        Int?
+  deliveryAvailable    Boolean  @default(false)
+  deliveryPricePerMile Decimal? @db.Decimal(10, 2)
+  deliveryMaxMiles     Int?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -724,6 +804,7 @@ model Listing {
   sale                Sale?
   hpiReport           HpiReport?
   deliveryRequests    DeliveryRequest[]
+  serviceJobVehicles  ServiceJobVehicle[]
 
   @@index([sellerId])
   @@index([vehicleId])
@@ -747,38 +828,38 @@ model Listing {
 /// auto-generated from OneAutoAPI and are already COMPLETED/ONE_AUTO_API by
 /// virtue of the column defaults, so they keep rendering from `data` as before.
 model HpiReport {
-  id              String   @id @default(uuid())
-  listingId       String   @unique
-  vrm             String
+  id            String   @id @default(uuid())
+  listingId     String   @unique
+  vrm           String
   /// Raw OneAutoAPI response. Only ever populated on legacy ONE_AUTO_API rows.
-  data            Json?
-  isClear         Boolean  @default(false)
-  purchasedAt     DateTime @default(now())
-  transactionId   String?  // Reference to payment transaction
+  data          Json?
+  isClear       Boolean  @default(false)
+  purchasedAt   DateTime @default(now())
+  transactionId String? // Reference to payment transaction
 
-  status          HpiReportStatus @default(COMPLETED)
-  source          HpiReportSource @default(ONE_AUTO_API)
+  status         HpiReportStatus @default(COMPLETED)
+  source         HpiReportSource @default(ONE_AUTO_API)
   /// Structured check data entered by an admin, rendered into the PDF.
   /// Shape is owned by HpiReportData in backend/src/hpi/hpi-report.types.ts.
-  reportData      Json?
+  reportData     Json?
   /// An admin can instead upload the third-party PDF wholesale. Stored in-row
   /// rather than object storage on purpose: a report is paid content, so there
   /// must be no URL that can be fetched without passing our own auth. When
   /// this is set it takes precedence over `reportData` when serving the PDF.
-  pdfData         Bytes?
-  pdfFileName     String?
-  pdfSizeBytes    Int?
-  pdfUploadedAt   DateTime?
-  preparedById    String?
-  preparedAt      DateTime?
+  pdfData        Bytes?
+  pdfFileName    String?
+  pdfSizeBytes   Int?
+  pdfUploadedAt  DateTime?
+  preparedById   String?
+  preparedAt     DateTime?
   /// Last time admins were nudged about this report still being outstanding.
   /// Dedupes the reminder job so one stale report can't mail them daily.
-  reminderSentAt  DateTime?
+  reminderSentAt DateTime?
 
-  listing         Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  preparedBy      User?    @relation("HpiReportsPrepared", fields: [preparedById], references: [id], onDelete: SetNull)
+  listing    Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  preparedBy User?   @relation("HpiReportsPrepared", fields: [preparedById], references: [id], onDelete: SetNull)
 
-  emailRequests   HpiReportEmailRequest[]
+  emailRequests HpiReportEmailRequest[]
 
   @@index([listingId])
   @@index([status])
@@ -805,7 +886,7 @@ enum HpiReportSource {
 /// and many buyers can each pay for their own copy of the same underlying
 /// report, so this is a fan-out list, not a 1:1 field on HpiReport.
 model HpiReportEmailRequest {
-  id            String                   @id @default(uuid())
+  id            String                 @id @default(uuid())
   hpiReportId   String
   buyerId       String
   /// Snapshot of the buyer's account email at request time — never taken
@@ -813,12 +894,11 @@ model HpiReportEmailRequest {
   /// silently redirect an already-queued delivery.
   buyerEmail    String
   transactionId String?
-  status        HpiEmailDeliveryStatus  @default(PENDING)
-  requestedAt   DateTime                @default(now())
+  status        HpiEmailDeliveryStatus @default(PENDING)
+  requestedAt   DateTime               @default(now())
   sentAt        DateTime?
-
-  hpiReport     HpiReport @relation(fields: [hpiReportId], references: [id], onDelete: Cascade)
-  buyer         User      @relation("HpiReportEmailRequests", fields: [buyerId], references: [id], onDelete: Cascade)
+  hpiReport HpiReport @relation(fields: [hpiReportId], references: [id], onDelete: Cascade)
+  buyer     User      @relation("HpiReportEmailRequests", fields: [buyerId], references: [id], onDelete: Cascade)
 
   @@index([hpiReportId])
   @@index([buyerId])
@@ -859,16 +939,16 @@ model Auction {
   // Set the moment a winner is determined (real bid, BIN, seller-accept, or
   // admin assignment). Used to measure the grace window before an unpaid win
   // auto-reverts — see UnpaidAuctionFeeExpiryService.
-  wonAt                  DateTime?
-  buyerFeePaid           Boolean   @default(false)
-  buyerFeeTransactionId  String?
-  handoverProofUrl       String?
-  handoverSubmittedAt    DateTime?
-  sellerBonusReleased    Boolean   @default(false)
-  sellerBonusReleasedAt  DateTime?
-  stripePayoutTransferId String?   // Set when Stripe transfer succeeds
-  stripePayoutError      String?   // Set when auto-payout didn't happen (no Connect account, Stripe error, or test-mode skip) — needs manual action
-  stripeRefundError      String?   // Set if the buyer-fee refund fails on handover denial — needs manual action
+  wonAt                   DateTime?
+  buyerFeePaid            Boolean   @default(false)
+  buyerFeeTransactionId   String?
+  handoverProofUrl        String?
+  handoverSubmittedAt     DateTime?
+  sellerBonusReleased     Boolean   @default(false)
+  sellerBonusReleasedAt   DateTime?
+  stripePayoutTransferId  String? // Set when Stripe transfer succeeds
+  stripePayoutError       String? // Set when auto-payout didn't happen (no Connect account, Stripe error, or test-mode skip) — needs manual action
+  stripeRefundError       String? // Set if the buyer-fee refund fails on handover denial — needs manual action
   // Set once an admin manually confirms they've paid the seller outside Stripe
   // (bank transfer). sellerBonusReleased means "handover approved" — this is
   // the separate "the £100 has actually reached the seller" signal; without
@@ -883,8 +963,9 @@ model Auction {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  winner  User?   @relation("AuctionWinner", fields: [winnerId], references: [id])
+  listing     Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  winner      User?        @relation("AuctionWinner", fields: [winnerId], references: [id])
+  serviceJobs ServiceJob[]
 
   @@index([status])
   @@index([endTime])
@@ -893,11 +974,11 @@ model Auction {
 }
 
 model Bid {
-  id        String    @id @default(uuid())
-  listingId String
-  bidderId  String
-  amount    Decimal   @db.Decimal(12, 2)
-  timestamp DateTime  @default(now())
+  id          String    @id @default(uuid())
+  listingId   String
+  bidderId    String
+  amount      Decimal   @db.Decimal(12, 2)
+  timestamp   DateTime  @default(now())
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
@@ -1062,10 +1143,10 @@ model Message {
 // ============================================================================
 
 model WatchlistItem {
-  id        String   @id @default(uuid())
-  userId    String
-  listingId String
-  createdAt DateTime @default(now())
+  id            String    @id @default(uuid())
+  userId        String
+  listingId     String
+  createdAt     DateTime  @default(now())
   // Idempotency guard for the "auction ends in 24h" reminder
   reminded24hAt DateTime?
 
@@ -1083,20 +1164,20 @@ model WatchlistItem {
 // ============================================================================
 
 model Notification {
-  id         String   @id @default(uuid())
-  userId     String
-  type       String // BID_PLACED, AUCTION_ENDING, MESSAGE_RECEIVED, etc.
-  title      String
-  message    String
-  data       Json? // Contextual data (listingId, bidId, etc.)
-  
-  // Deep-linking fields
-  entityType String?  // e.g. "LISTING", "OFFER"
-  entityId   String?  // UUID
-  actionType String?  // e.g. "COUNTER_RECEIVED"
+  id      String @id @default(uuid())
+  userId  String
+  type    String // BID_PLACED, AUCTION_ENDING, MESSAGE_RECEIVED, etc.
+  title   String
+  message String
+  data    Json? // Contextual data (listingId, bidId, etc.)
 
-  isRead     Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  // Deep-linking fields
+  entityType String? // e.g. "LISTING", "OFFER"
+  entityId   String? // UUID
+  actionType String? // e.g. "COUNTER_RECEIVED"
+
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
 
@@ -1115,7 +1196,6 @@ model AnalyticsEvent {
   sessionId String?
   userId    String?
   createdAt DateTime @default(now())
-
   user User? @relation(fields: [userId], references: [id])
 
   @@index([type])
@@ -1180,28 +1260,29 @@ model Offer {
   status    OfferStatus @default(PENDING)
   /// Optional message from buyer to seller
   message   String?
-  
+
   /// Negotiation Ledger fields
-  initialAmount      Decimal?    @db.Decimal(12, 2)
-  finalAmount        Decimal?    @db.Decimal(12, 2)
-  sellerCounterAmount Decimal?   @db.Decimal(12, 2)
-  buyerCounterAmount  Decimal?   @db.Decimal(12, 2)
+  initialAmount       Decimal? @db.Decimal(12, 2)
+  finalAmount         Decimal? @db.Decimal(12, 2)
+  sellerCounterAmount Decimal? @db.Decimal(12, 2)
+  buyerCounterAmount  Decimal? @db.Decimal(12, 2)
 
   /// Keep this for backwards compatibility if needed, or remove it later
-  counterAmount Decimal?    @db.Decimal(12, 2)
+  counterAmount Decimal? @db.Decimal(12, 2)
 
   counterAttemptsBuyer  Int       @default(0)
   counterAttemptsSeller Int       @default(0)
   counterExpiresAt      DateTime?
-  lastCounteredBy       String?   // 'BUYER' | 'SELLER'
+  lastCounteredBy       String? // 'BUYER' | 'SELLER'
 
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  listing          Listing          @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  buyer            User             @relation(fields: [buyerId], references: [id])
-  seller           User?            @relation("SellerOffers", fields: [sellerId], references: [id])
+  listing          Listing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyer            User              @relation(fields: [buyerId], references: [id])
+  seller           User?             @relation("SellerOffers", fields: [sellerId], references: [id])
   deliveryRequests DeliveryRequest[]
+  serviceJobs      ServiceJob[]
 
   @@index([listingId])
   @@index([buyerId])
@@ -1222,7 +1303,7 @@ model DeliveryRequest {
   offerId          String
   buyerId          String
   sellerId         String
-  deliveryAddress  Json           // { street: string, city: string, postcode: string }
+  deliveryAddress  Json // { street: string, city: string, postcode: string }
   deliveryNotes    String?
   distanceMiles    Float
   estimatedCostGbp Decimal        @db.Decimal(10, 2)
@@ -1235,10 +1316,10 @@ model DeliveryRequest {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  listing  Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  offer    Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  buyer    User    @relation("DeliveryBuyer", fields: [buyerId], references: [id])
-  seller   User    @relation("DeliverySeller", fields: [sellerId], references: [id])
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  offer   Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  buyer   User    @relation("DeliveryBuyer", fields: [buyerId], references: [id])
+  seller  User    @relation("DeliverySeller", fields: [sellerId], references: [id])
 
   @@index([listingId])
   @@index([buyerId])
@@ -1255,7 +1336,7 @@ model DeliveryRequest {
 /// Scraped market price data from competitor websites
 model MarketPriceData {
   id           String   @id @default(uuid())
-  source       String   // AUTOTRADER, MOTORS, GUMTREE, CARGURUS, CARWOW, PULSECARS
+  source       String // AUTOTRADER, MOTORS, GUMTREE, CARGURUS, CARWOW, PULSECARS
   make         String
   model        String
   variant      String?
@@ -1266,7 +1347,7 @@ model MarketPriceData {
   transmission String?
   bodyType     String?
   location     String?
-  sellerType   String?  // PRIVATE or DEALER
+  sellerType   String? // PRIVATE or DEALER
   sourceUrl    String?
   scrapedAt    DateTime @default(now())
 
@@ -1278,7 +1359,7 @@ model MarketPriceData {
 
 /// Cached AI price estimates to avoid re-computation
 model PriceEstimateCache {
-  id           String   @id @default(uuid())
+  id           String  @id @default(uuid())
   make         String
   model        String
   year         Int
@@ -1289,14 +1370,14 @@ model PriceEstimateCache {
   location     String?
 
   /// Computed values
-  estimateLow  Decimal  @db.Decimal(12, 2)
-  estimateMid  Decimal  @db.Decimal(12, 2)
-  estimateHigh Decimal  @db.Decimal(12, 2)
-  comparables  Int      // How many market listings were used
-  confidence   Float    // 0.0 - 1.0 confidence score
+  estimateLow  Decimal @db.Decimal(12, 2)
+  estimateMid  Decimal @db.Decimal(12, 2)
+  estimateHigh Decimal @db.Decimal(12, 2)
+  comparables  Int // How many market listings were used
+  confidence   Float // 0.0 - 1.0 confidence score
 
-  createdAt    DateTime @default(now())
-  expiresAt    DateTime // 24-48hr TTL
+  createdAt DateTime @default(now())
+  expiresAt DateTime // 24-48hr TTL
 
   @@unique([make, model, year, mileage, fuelType, transmission, condition])
   @@index([make, model, year])
@@ -1316,15 +1397,15 @@ model Session {
 model DamageRecord {
   id        String   @id @default(uuid())
   listingId String
-  part      String   // e.g., "Front Bumper", "Driver Door"
-  type      String   // e.g., "Scratch", "Scuff", "Dent"
-  size      String   // e.g., "0-5cm", "6-15cm", "15cm+"
-  coords    Json     // { x: number, y: number, view: 'FRONT'|'SIDE'|'REAR'|'TOP' }
-  imageUrl  String?  // Reference to the source photo
+  part      String // e.g., "Front Bumper", "Driver Door"
+  type      String // e.g., "Scratch", "Scuff", "Dent"
+  size      String // e.g., "0-5cm", "6-15cm", "15cm+"
+  coords    Json // { x: number, y: number, view: 'FRONT'|'SIDE'|'REAR'|'TOP' }
+  imageUrl  String? // Reference to the source photo
   createdAt DateTime @default(now())
 
-  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
   @@index([listingId])
   @@map("damage_records")
 }
@@ -1339,7 +1420,7 @@ model MarketingPopup {
   imageUrl  String?
   linkUrl   String   @default("/auctions")
   updatedAt DateTime @updatedAt
-  updatedBy String?  // admin user id who last changed it
+  updatedBy String? // admin user id who last changed it
 
   @@map("marketing_popup")
 }
@@ -1398,9 +1479,9 @@ model Sale {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  listing   Listing  @relation(fields: [listingId], references: [id])
-  seller    User     @relation("SellerSales", fields: [sellerId], references: [id])
-  buyer     User?    @relation("BuyerPurchases", fields: [buyerId], references: [id])
+  listing Listing @relation(fields: [listingId], references: [id])
+  seller  User    @relation("SellerSales", fields: [sellerId], references: [id])
+  buyer   User?   @relation("BuyerPurchases", fields: [buyerId], references: [id])
 
   @@index([sellerId])
   @@index([buyerId])
@@ -1427,3 +1508,178 @@ model AddressVerification {
   @@map("address_verifications")
 }
 
+// ============================================================================
+// TRADE EXCHANGE — SERVICE MARKETPLACE
+// ============================================================================
+// See docs/TRADE_EXCHANGE_SERVICES.md for the flows, rules and API surface.
+//
+// Money is in integer pence throughout. The fee split is frozen onto the job
+// and the payment at acceptance time, so a later change to the platform rate
+// never rewrites what a contractor was promised.
+
+/// A contractor's permission to take work in one service area. One row per
+/// contractor per service; admin-approved.
+model ContractorCapability {
+  id           String           @id @default(uuid())
+  contractorId String
+  serviceType  ServiceType
+  status       CapabilityStatus @default(PENDING)
+  appliedAt    DateTime         @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?
+  reviewNote   String? /// shown to the contractor on rejection/suspension
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  contractor ContractorProfile @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  reviewedBy User?             @relation("CapabilityReviewer", fields: [reviewedById], references: [id])
+
+  @@unique([contractorId, serviceType])
+  @@index([serviceType, status])
+  @@map("contractor_capabilities")
+}
+
+/// A piece of work a customer wants done. Any signed-in user can post one.
+model ServiceJob {
+  id          String           @id @default(uuid())
+  customerId  String
+  serviceType ServiceType
+  /// Recovery = broken-down / non-runner. Same flow, flags the urgency and
+  /// tells the contractor to bring a flatbed, not trade plates.
+  isRecovery  Boolean          @default(false)
+  status      ServiceJobStatus @default(OPEN)
+  title       String
+  description String?
+
+  // Location. Delivery uses pickup + delivery; inspection uses servicePostcode.
+  // Full postcodes are visible to approved contractors (they cannot quote a
+  // route without them); the street address is revealed only to the accepted
+  // contractor.
+  pickupPostcode   String?
+  pickupAddress    String?
+  deliveryPostcode String?
+  deliveryAddress  String?
+  servicePostcode  String?
+  serviceAddress   String?
+
+  /// When the customer wants it. Null = as soon as possible.
+  requestedFor DateTime?
+  /// OPEN jobs close automatically at this point if no quote was accepted.
+  expiresAt    DateTime
+
+  // Set at acceptance. contractorId is denormalised from the accepted quote so
+  // "my assigned jobs" is one indexed query.
+  acceptedQuoteId       String?  @unique
+  contractorId          String?
+  agreedAmountPence     Int?
+  platformFeeRate       Decimal? @db.Decimal(5, 4)
+  platformFeePence      Int?
+  contractorAmountPence Int?
+
+  // Where the job came from, when it came from a purchase (post-purchase hook).
+  sourceOfferId   String?
+  sourceAuctionId String?
+
+  acceptedAt   DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime? /// contractor marked complete
+  confirmedAt  DateTime? /// customer confirmed (or auto after 48h)
+  cancelledAt  DateTime?
+  cancelReason String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  customer      User                @relation("ServiceJobCustomer", fields: [customerId], references: [id])
+  contractor    ContractorProfile?  @relation(fields: [contractorId], references: [id])
+  acceptedQuote ServiceQuote?       @relation("AcceptedQuote", fields: [acceptedQuoteId], references: [id])
+  sourceOffer   Offer?              @relation(fields: [sourceOfferId], references: [id])
+  sourceAuction Auction?            @relation(fields: [sourceAuctionId], references: [id])
+  vehicles      ServiceJobVehicle[]
+  quotes        ServiceQuote[]
+  payment       ServicePayment?
+
+  @@index([customerId, status])
+  @@index([contractorId, status])
+  @@index([serviceType, status, createdAt])
+  @@index([status, expiresAt])
+  @@map("service_jobs")
+}
+
+/// One vehicle on a job. A multi-car move is one job with several rows — one
+/// truck, one price. Inspections have exactly one.
+model ServiceJobVehicle {
+  id           String  @id @default(uuid())
+  jobId        String
+  registration String?
+  make         String?
+  model        String?
+  year         Int?
+  notes        String? /// "non-runner", "no keys", "low clearance"
+  /// Set when the vehicle is a CarMazium listing (post-purchase hook).
+  listingId    String?
+
+  job     ServiceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  listing Listing?   @relation(fields: [listingId], references: [id])
+
+  @@index([jobId])
+  @@map("service_job_vehicles")
+}
+
+/// A contractor's price for a job. One live quote per contractor per job; they
+/// update it rather than stacking new ones.
+model ServiceQuote {
+  id            String             @id @default(uuid())
+  jobId         String
+  contractorId  String
+  /// The account that typed it — the contractor's own user, or later a staff
+  /// member acting for them.
+  submittedById String
+  amountPence   Int
+  message       String?
+  status        ServiceQuoteStatus @default(ACTIVE)
+  validUntil    DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  job         ServiceJob        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  contractor  ContractorProfile @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  submittedBy User              @relation("ServiceQuoteSubmitter", fields: [submittedById], references: [id])
+  acceptedFor ServiceJob?       @relation("AcceptedQuote")
+
+  @@unique([jobId, contractorId])
+  @@index([contractorId, status])
+  @@map("service_quotes")
+}
+
+/// The money on a job. Created at acceptance, one per job. The customer pays
+/// the gross to the platform via Stripe Checkout; on confirmed completion the
+/// contractor's share is transferred to their Connect account.
+model ServicePayment {
+  id               String               @id @default(uuid())
+  jobId            String               @unique
+  customerId       String
+  contractorId     String
+  grossPence       Int
+  platformFeeRate  Decimal              @db.Decimal(5, 4)
+  platformFeePence Int
+  contractorPence  Int
+  status           ServicePaymentStatus @default(PENDING)
+
+  stripeCheckoutSessionId String? @unique
+  stripePaymentIntentId   String? @unique
+  stripeTransferId        String? @unique
+
+  paidAt     DateTime?
+  releasedAt DateTime?
+  refundedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  job        ServiceJob        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  customer   User              @relation("ServicePaymentCustomer", fields: [customerId], references: [id])
+  contractor ContractorProfile @relation(fields: [contractorId], references: [id])
+
+  @@index([contractorId, status])
+  @@index([status])
+  @@map("service_payments")
+}

@@ -262,16 +262,16 @@ function HpiBaitSection({ isUnlocked, onUnlock }: { isUnlocked: boolean, onUnloc
                 <div className="p-6 md:p-8 flex-1 flex flex-col justify-center text-center md:text-left">
                     <div className="flex items-center justify-center md:justify-start gap-3 mb-3">
                         <Shield className="text-blue-400 shrink-0" size={32} />
-                        <h3 className="text-[var(--text-primary)] font-bold text-xl">Official HPI Vehicle Check</h3>
+                        <h3 className="text-[var(--text-primary)] font-bold text-xl">Mandatory HPI Vehicle Check</h3>
                     </div>
                     
                     <p className="text-[var(--text-secondary)] mb-6 leading-relaxed">
-                        We've found an official HPI record for this vehicle. Unlocking the full report gives you a <strong className="text-[var(--text-primary)]">Premium Verification Badge</strong> on your listing.
+                        Every CarMazium listing requires a vehicle history report. Request it here before final submission; the report may remain pending while our team prepares it.
                     </p>
                     
                     <div className="flex flex-col items-center md:items-start gap-3 mt-auto">
                         <Button type="button" onClick={onUnlock} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold px-8 py-6 text-base shadow-neon shrink-0 w-full sm:w-auto border-0">
-                            Unlock Full HPI Report
+                            Request Mandatory HPI Report
                         </Button>
                         <p className="text-xs text-[var(--text-muted)] italic flex items-center gap-1.5">
                             <BadgeCheck size={14} className="text-emerald-400" />
@@ -354,6 +354,7 @@ export function ListingWizard({ isDashboard = false }: { isDashboard?: boolean }
         apiClient<{ data: any }>(`/listings/${editSlug || editId}`)
             .then(res => {
                 const l = res.data
+                setIsHpiUnlocked(!!l.hpiReport)
                 setFormData(prev => ({
                     ...prev,
                     vrm: l.vrm || '',
@@ -414,6 +415,8 @@ export function ListingWizard({ isDashboard = false }: { isDashboard?: boolean }
                     deliveryPricePerMile: l.deliveryPricePerMile ? String(l.deliveryPricePerMile) : '',
                     deliveryMaxMiles: l.deliveryMaxMiles ? String(l.deliveryMaxMiles) : '',
                 }))
+                if (l.hpiReport?.status) setIsHpiUnlocked(true)
+
                 // Jump straight to step 1 (already pre-filled)
                 setSellingMethod('list')
                 setCurrentStep(1)
@@ -717,6 +720,11 @@ export function ListingWizard({ isDashboard = false }: { isDashboard?: boolean }
     const handleSubmit = async () => {
         if (!isAuthenticated) { setShowLoginModal(true); return }
         if (!isEmailVerified) { router.push("/auth/onboarding"); return }
+        if (!isHpiUnlocked) {
+            setSubmitError("A HPI/history report is required for every CarMazium listing. Request the report before submitting your vehicle for review.")
+            setShowHpiModal(true)
+            return
+        }
 
         setIsSubmitting(true)
         setSubmitError(null)
@@ -1128,7 +1136,11 @@ export function ListingWizard({ isDashboard = false }: { isDashboard?: boolean }
                              setIsProcessingPayment(true)
                              try {
                                  // Need a listing ID for HPI checkout — create a draft first if we don't have one
-                                 let listingId = draftListingId
+                                 let listingId = draftListingId || editId
+                                 if (editId && !draftListingId) {
+                                     setDraftListingId(editId)
+                                     localStorage.setItem('carmazium_hpi_draft_id', editId)
+                                 }
                                  if (!listingId) {
                                      const draft = await createListing({
                                          title: formData.title || `${formData.make || ''} ${formData.model || ''} ${formData.year || ''}`.trim() || formData.vrm,

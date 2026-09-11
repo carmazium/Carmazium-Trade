@@ -1,6 +1,9 @@
 # Syntax=docker/dockerfile:1
 
-ARG NODE_VERSION=20.10.0
+# Node 24 is the single backend runtime. Current dependencies (including
+# geoip-lite 2.x) require the newer runtime, so keeping Docker on Node 20 while
+# CI/hosting used something else created a latent production-only failure.
+ARG NODE_VERSION=24.8.0
 
 # ── Stage 1: Build ──────────────────────────────────────────────
 FROM node:${NODE_VERSION}-alpine AS builder
@@ -28,10 +31,9 @@ ENV PORT=8080
 # Install postgresql-client for pg_dump (required by weekly backup cron)
 RUN apk add --no-cache postgresql16-client
 
-# Copy package files and install production deps only.
-# NODE_ENV=production is already set above — postinstall checks this and
-# skips `prisma generate` automatically (Prisma client is already built
-# in Stage 1 and copied below; prisma CLI is a devDependency anyway).
+# Install production dependencies only. Schema changes are NEVER pushed here;
+# production migrations are an explicit deployment step, not a container boot
+# side effect.
 COPY package*.json ./
 RUN npm ci --omit=dev
 
@@ -39,13 +41,12 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-# Copy prisma CLI so we can run migrate deploy at startup
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
 # Copy compiled NestJS app
 COPY --from=builder /app/dist ./dist
 
-# Static assets bundled with the app (letterhead PDF template, etc.)
+# Static assets bundled with the app
 COPY --from=builder /app/assets ./assets
 
 EXPOSE 8080
