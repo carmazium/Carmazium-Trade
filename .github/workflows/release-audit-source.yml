@@ -50,8 +50,22 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Backend lint
-        working-directory: backend
-        run: npx eslint "src/**/*.ts" "test/**/*.ts" --no-error-on-unmatched-pattern
+        shell: bash
+        run: |
+          set +e
+          cd backend
+          npx eslint "src/**/*.ts" "test/**/*.ts" --no-error-on-unmatched-pattern 2>&1 | tee ../backend-lint.txt
+          lint_status=${PIPESTATUS[0]}
+          cd ..
+          if [ "$lint_status" -ne 0 ]; then
+            git config user.name "carmazium-audit-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add backend-lint.txt
+            git commit -m "audit: capture backend lint diagnostics"
+            git push origin HEAD:release-audit-source-2026-09-11
+            exit "$lint_status"
+          fi
+          rm -f backend-lint.txt
 
       - name: Backend production build
         working-directory: backend
