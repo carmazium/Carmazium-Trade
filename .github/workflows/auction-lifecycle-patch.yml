@@ -83,16 +83,26 @@ jobs:
               'import { getAdminAuctions, getAllDealers, assignAuctionWinner } from "@/lib/adminApi"',
               'import { getAdminAuctions, getAllDealers, assignAuctionWinner } from "@/lib/adminApi"\nimport { FailedSaleRefundButton } from "@/components/dashboard/FailedSaleRefundButton"',
           )
-          marker = '''                                                    <button
-                                                        type="button"
-                                                        onClick={() => a.listing?.id && setEditListingId(a.listing.id)}'''
-          insertion = '''                                                    {a.status === 'ENDED' && a.winner && a.buyerFeePaid && !a.sellerBonusReleased && (
-                                                        <FailedSaleRefundButton auctionId={a.id} onCompleted={loadAuctions} />
-                                                    )}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => a.listing?.id && setEditListingId(a.listing.id)}'''
-          replace_exact('src/app/dashboard/admin/auctions/page.tsx', marker, insertion)
+          p = Path('src/app/dashboard/admin/auctions/page.tsx')
+          text = p.read_text(encoding='utf-8-sig')
+          edit_button = re.compile(
+              r'(?P<indent>\s*)<button\n'
+              r'\s*type="button"\n'
+              r'\s*onClick=\{\(\) => a\.listing\?\.id && setEditListingId\(a\.listing\.id\)\}',
+          )
+          match = edit_button.search(text)
+          if not match:
+              raise SystemExit('Could not find admin auction Edit Listing button')
+          indent = match.group('indent')
+          original = match.group(0)
+          insertion = (
+              f"{indent}{{a.status === 'ENDED' && a.winner && a.buyerFeePaid && !a.sellerBonusReleased && (\n"
+              f"{indent}    <FailedSaleRefundButton auctionId={{a.id}} onCompleted={{loadAuctions}} />\n"
+              f"{indent})}}\n"
+              f"{original}"
+          )
+          text = text[:match.start()] + insertion + text[match.end():]
+          p.write_text(text, encoding='utf-8')
 
           # Remove obsolete buyer-facing state that equated rejected proof with refund.
           p = Path('src/app/dashboard/dealer/auctions/won/page.tsx')
