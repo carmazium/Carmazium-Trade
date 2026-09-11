@@ -42,7 +42,7 @@ export default function FinanceDashboard() {
         if (!authLoading && user) fetchData()
     }, [user, authLoading])
 
-    const handleStatusUpdate = async (id: string, status: string) => {
+    const handleStatusUpdate = async (id: string, status: FinanceApplication['status']) => {
         try {
             setUpdating(id)
             const updated = await updateFinanceStatus(id, status)
@@ -72,7 +72,6 @@ export default function FinanceDashboard() {
                 <DashboardSidebar role="finance" userName={userName} userType="Finance Partner" />
 
                 <main className="flex-1 space-y-8">
-                    {/* Stats Row */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="glass-card p-6 border border-[var(--border-default)] bg-[var(--bg-card)] rounded-2xl hover:bg-white/10 transition-colors">
                             <div className="flex items-center gap-3 mb-2">
@@ -112,7 +111,6 @@ export default function FinanceDashboard() {
                         </div>
                     </div>
 
-                    {/* Recent Applications Table */}
                     <div className="glass-card overflow-hidden border border-[var(--border-default)] bg-[var(--bg-card)] rounded-2xl">
                         <div className="p-6 border-b border-[var(--border-default)] flex justify-between items-center bg-[var(--bg-card)]">
                             <h2 className="text-xl font-black font-heading text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
