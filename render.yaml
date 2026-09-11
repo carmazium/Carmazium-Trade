@@ -1,22 +1,10 @@
 services:
   - type: web
     name: carmazium-backend
-    env: node
-    plan: free
-    repo: https://github.com/pizn-01/carmazium
+    runtime: docker
+    repo: https://github.com/carmazium/Carmazium-Trade
     branch: main
-    rootDir: backend
-    # Schema changes must be applied through reviewed migrations. Never run
-    # `prisma db push` automatically against production during a build.
-    buildCommand: npm install --include=dev && npm run build
-    startCommand: npm run start:prod
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: 10000
-      # Required: Set these in Render Dashboard (Settings > Environment)
-      # - SUPABASE_URL: Your Supabase project URL
-      # - SUPABASE_JWT_SECRET: From Supabase Dashboard > Settings > API
-      # - DATABASE_URL: Prisma connection string
-    autoDeploy: true
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit

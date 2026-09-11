@@ -252,9 +252,9 @@ export class AdminService {
                 // BIN/start time) on this related row, not on Listing itself — the
                 // pending-review UI needs it to actually review an auction.
                 auction: true,
-                // Drives the "HPI outstanding" indicator. Informational only —
-                // a pending report no longer blocks approval, it just tells the
-                // reviewer this listing will go live owing its seller a report.
+                // HPI is mandatory: the relation must exist before approval. A PENDING
+                // report does not block approval; it tells the reviewer the report
+                // is still being prepared and will be attached later.
                 // pdfUploadedAt distinguishes a report completed by uploading the
                 // supplied PDF from one keyed into the form — the two are edited
                 // through different modals, so the UI has to know which it is.
@@ -405,9 +405,15 @@ export class AdminService {
      * about it — the report has its own lifecycle.
      */
     async approveListing(id: string) {
-        const listing = await this.prisma.listing.findUnique({ where: { id } });
+        const listing = await this.prisma.listing.findUnique({
+            where: { id },
+            include: { hpiReport: { select: { id: true, status: true } } },
+        });
         if (!listing) {
             throw new NotFoundException('Listing not found');
+        }
+        if (!listing.hpiReport) {
+            throw new BadRequestException('Every listing requires a HPI/history report request before it can be approved.');
         }
         if (listing.status !== 'PENDING_REVIEW') {
             throw new BadRequestException('Only listings awaiting review can be approved');

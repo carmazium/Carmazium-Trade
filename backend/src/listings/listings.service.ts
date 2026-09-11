@@ -892,6 +892,11 @@ export class ListingsService {
                 'This listing has not been approved yet. Submit it for review from the listing editor instead.',
             );
         }
+        if (status === 'ACTIVE' && listing.type === 'CLASSIFIED' && ['SOLD', 'WITHDRAWN', 'OFFER_ACCEPTED'].includes(listing.status)) {
+            throw new BadRequestException(
+                'Retail relisting requires a new Retail Listing and a fresh HPI/history report. Create a new listing instead of reactivating this one.',
+            );
+        }
 
         // For SOLD transitions we wrap the listing update + Sale insert in a transaction
         // so total earnings can never drift from the listings.status state.
@@ -958,6 +963,16 @@ export class ListingsService {
         if (listing.images.length < 10) {
             throw new BadRequestException(
                 `Listings require at least 10 photos before publishing. You have ${listing.images.length}.`,
+            );
+        }
+
+        const mandatoryHpi = await this.prisma.hpiReport.findUnique({
+            where: { listingId: id },
+            select: { id: true, status: true },
+        });
+        if (!mandatoryHpi) {
+            throw new BadRequestException(
+                'A HPI/history report request is required before this listing can be submitted for review.',
             );
         }
 
