@@ -9,7 +9,7 @@ import { mergeMap } from 'rxjs/operators';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
- * Final privacy boundary for a single public listing response.
+ * Final privacy boundary for GET /listings/:slug.
  *
  * Rules:
  * - Retail/classified contact details are public by design — no login wall.
@@ -17,9 +17,6 @@ import { PrismaService } from '../prisma/prisma.service';
  *   endpoint reveals it only after the £125 buyer fee is paid.
  * - Offer data is never public. An authenticated buyer may see only their own
  *   offer embedded in the listing response; everyone else receives none.
- *
- * This deliberately sits at the response boundary so even an older query in
- * ListingsService cannot accidentally leak another buyer's offer fields.
  */
 @Injectable()
 export class ListingPrivacyInterceptor implements NestInterceptor {
@@ -27,7 +24,6 @@ export class ListingPrivacyInterceptor implements NestInterceptor {
 
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
         const req = context.switchToHttp().getRequest<any>();
-
         return next.handle().pipe(
             mergeMap((response: any) => from(this.sanitize(response, req))),
         );
@@ -36,6 +32,18 @@ export class ListingPrivacyInterceptor implements NestInterceptor {
     private async sanitize(response: any, req: any) {
         if (req?.method !== 'GET') return response;
 
+        // APP_INTERCEPTOR is global even though it is registered from
+        // ListingsModule. Scope the mutation to the one public detail route;
+        // admin endpoints and dashboard endpoints must retain their full data.
+        const path = String(req.originalUrl || req.url || '').split('?')[0];
+        if (!/^\/listings\/[^/]+$/.test(path)) return response;
+
+        const staticListingRoutes = new Set([
+            'featured', 'my', 'stats', 'performance', 'earnings',
+        ]);
+        const routePart = decodeURIComponent(path.slice('/listings/'.length));
+        if (staticListingRoutes.has(routePart)) return response;
+
         const listing = response?.data;
         if (!listing || Array.isArray(listing) || !listing.id || !listing.slug || !listing.type || !listing.seller) {
             return response;
@@ -43,9 +51,6 @@ export class ListingPrivacyInterceptor implements NestInterceptor {
 
         const viewerId: string | undefined = req.user?.id;
 
-        // A public detail response may carry an offers[] relation from an older
-        // query. Keep at most the current buyer's own offer; never expose a
-        // different buyer's amount/status/message/id to the public.
         if (Array.isArray(listing.offers)) {
             listing.offers = viewerId
                 ? listing.offers.filter((offer: any) => offer?.buyerId === viewerId)
@@ -53,8 +58,6 @@ export class ListingPrivacyInterceptor implements NestInterceptor {
         }
 
         if (listing.type === 'AUCTION') {
-            // Seller details for auctions are deliberately disclosed only by
-            // the winner-gated auction endpoint after buyerFeePaid=true.
             listing.seller = {
                 ...listing.seller,
                 phone: null,
@@ -75,8 +78,8 @@ export class ListingPrivacyInterceptor implements NestInterceptor {
 
         if (listing.type !== 'CLASSIFIED' || !listing.sellerId) return response;
 
-        // Admin-created stock is branded as CarMazium elsewhere. Do not undo
-        // that protection by injecting a staff member's private account contact.
+        // Admin-created stock is branded as CarMazium elsewhere. Never expose a
+        // staff member's private account details as the seller contact.
         if (listing.seller?.role === 'ADMIN') {
             listing.seller = {
                 ...listing.seller,
