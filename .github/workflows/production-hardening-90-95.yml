@@ -13,6 +13,9 @@ permissions:
 jobs:
   harden-build-test:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/carmazium_ci
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/carmazium_ci
     steps:
       - name: Check out completion branch
         uses: actions/checkout@v4
