@@ -34,6 +34,11 @@ export interface FinanceApplication {
     }
 }
 
+export interface InsuranceProvider {
+    id: string
+    companyName: string
+}
+
 export interface InsuranceQuote {
     id: string
     listingId: string
@@ -48,6 +53,10 @@ export interface InsuranceQuote {
     expiryDate: string | null
     createdAt: string
     updatedAt: string
+    partner?: {
+        id: string
+        companyName: string
+    }
     listing?: {
         id: string
         title: string
@@ -67,10 +76,15 @@ export interface InsuranceQuote {
 }
 
 export interface PaginatedResponse<T> {
+    success: boolean
     data: T[]
-    total: number
-    page: number
-    limit: number
+    pagination: {
+        total: number
+        page: number
+        limit: number
+        totalPages: number
+    }
+    timestamp: string
 }
 
 export interface PartnerStats {
@@ -86,18 +100,17 @@ export interface PartnerStats {
 // ============================================================================
 
 export async function getFinanceApplications(page = 1, limit = 20): Promise<PaginatedResponse<FinanceApplication>> {
-    const res = await apiClient<PaginatedResponse<FinanceApplication>>(
+    return apiClient<PaginatedResponse<FinanceApplication>>(
         `/finance/partner?page=${page}&limit=${limit}`
     )
-    return res
 }
 
 export async function updateFinanceStatus(
     applicationId: string,
-    status: string,
+    status: FinanceApplication['status'],
     monthlyPayment?: number
 ): Promise<FinanceApplication> {
-    const body: any = { status }
+    const body: Record<string, unknown> = { status }
     if (monthlyPayment !== undefined) body.monthlyPayment = monthlyPayment
     const res = await apiClient<{ data: FinanceApplication }>(`/finance/${applicationId}/status`, {
         method: 'PATCH',
@@ -125,25 +138,60 @@ export async function getFinanceStats(): Promise<PartnerStats> {
 }
 
 // ============================================================================
+// INSURANCE API
+// ============================================================================
+
+export async function getInsuranceProviders(): Promise<InsuranceProvider[]> {
+    const res = await apiClient<{ data: InsuranceProvider[] }>('/insurance/providers')
+    return res.data
+}
+
+export async function requestInsuranceQuote(input: {
+    listingId: string
+    partnerId: string
+    driverAge: number
+    ncbYears: number
+    hasConvictions: boolean
+}): Promise<InsuranceQuote> {
+    const res = await apiClient<{ data: InsuranceQuote }>('/insurance/quote', {
+        method: 'POST',
+        body: JSON.stringify(input),
+    })
+    return res.data
+}
+
+export async function getMyInsuranceQuotes(page = 1, limit = 20): Promise<PaginatedResponse<InsuranceQuote>> {
+    return apiClient<PaginatedResponse<InsuranceQuote>>(`/insurance/my?page=${page}&limit=${limit}`)
+}
+
+export async function acceptInsuranceQuote(quoteId: string): Promise<InsuranceQuote> {
+    const res = await apiClient<{ data: InsuranceQuote }>(`/insurance/${quoteId}/accept`, {
+        method: 'POST',
+    })
+    return res.data
+}
+
+// ============================================================================
 // INSURANCE PARTNER API
 // ============================================================================
 
 export async function getInsuranceQuotes(page = 1, limit = 20): Promise<PaginatedResponse<InsuranceQuote>> {
-    const res = await apiClient<PaginatedResponse<InsuranceQuote>>(
+    return apiClient<PaginatedResponse<InsuranceQuote>>(
         `/insurance/partner?page=${page}&limit=${limit}`
     )
-    return res
 }
 
 export async function updateInsuranceStatus(
     quoteId: string,
-    status: string,
+    status: 'QUOTED' | 'EXPIRED' | 'REJECTED',
     quotedPrice?: number,
-    coverageType?: string
+    coverageType?: string,
+    expiryDate?: string,
 ): Promise<InsuranceQuote> {
-    const body: any = { status }
+    const body: Record<string, unknown> = { status }
     if (quotedPrice !== undefined) body.quotedPrice = quotedPrice
     if (coverageType) body.coverageType = coverageType
+    if (expiryDate) body.expiryDate = expiryDate
     const res = await apiClient<{ data: InsuranceQuote }>(`/insurance/${quoteId}/status`, {
         method: 'PATCH',
         body: JSON.stringify(body),
@@ -176,5 +224,5 @@ export async function getInsuranceStats(): Promise<PartnerStats> {
 export function formatCurrency(amount: number | string): string {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount
     if (isNaN(num)) return '£0'
-    return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }).format(num)
+    return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 2 }).format(num)
 }
