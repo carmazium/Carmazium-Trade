@@ -121,11 +121,26 @@ jobs:
           if count != 1:
               raise SystemExit(f'Expected one obsolete denied stage, found {count}')
           text = text2
+
           old_buckets = 'const buckets: Record<HandoverStage, Auction[]> = { fee_due: [], in_progress: [], complete: [], denied: [] }'
           new_buckets = 'const buckets: Record<HandoverStage, Auction[]> = { fee_due: [], in_progress: [], complete: [] }'
           if old_buckets not in text:
               raise SystemExit('Expected obsolete denied bucket was not found')
           text = text.replace(old_buckets, new_buckets)
+
+          refund_section = re.compile(
+              r'\n\s*\{/\* 4\. Refund in progress \*/\}.*?'
+              r'\n\s*\{/\* 5\. Completed — deprioritized, at the bottom \*/\}',
+              re.S,
+          )
+          text, count = refund_section.subn(
+              '\n\n                            {/* 4. Completed — deprioritized, at the bottom */}',
+              text,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit(f'Expected one obsolete refund-progress render section, found {count}')
+
           p.write_text(text, encoding='utf-8')
           PY
 
