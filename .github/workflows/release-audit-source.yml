@@ -1,0 +1,95 @@
+name: Release audit source gate
+
+on:
+  push:
+    branches:
+      - release-audit-source-2026-09-11
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout audit branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply asserted payment hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f scripts/release-audit-payment-fixes.py ]; then
+            python3 scripts/release-audit-payment-fixes.py
+          fi
+          rm -f .tmp-finance-marker
+          git diff --check
+
+      - name: Frontend clean install
+        run: npm ci
+
+      - name: Frontend lint
+        run: npm run lint
+
+      - name: Frontend production build
+        env:
+          NEXT_PUBLIC_API_URL: https://carmazium-hjoh9w.fly.dev
+          NEXT_PUBLIC_WS_URL: https://carmazium-hjoh9w.fly.dev
+          NEXT_PUBLIC_SUPABASE_URL: https://bwtnzmevjlowwronylxm.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-public-placeholder
+        run: npm run build
+
+      - name: Backend clean install
+        working-directory: backend
+        run: npm ci --ignore-scripts
+
+      - name: Backend lint
+        working-directory: backend
+        run: npx eslint "src/**/*.ts" "test/**/*.ts" --no-error-on-unmatched-pattern
+
+      - name: Backend production build
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium?schema=public
+          DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium?schema=public
+        run: npm run build
+
+      - name: Backend tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium?schema=public
+          DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium?schema=public
+          NODE_ENV: test
+        run: npm test -- --runInBand
+
+      - name: Mobile clean install
+        working-directory: carmazium app/carmazium app
+        run: npm ci
+
+      - name: Mobile TypeScript
+        working-directory: carmazium app/carmazium app
+        run: npm run typescript
+
+      - name: Mobile lint
+        working-directory: carmazium app/carmazium app
+        run: npm run lint
+
+      - name: Commit transformed audited source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No generated source changes to commit"
+            exit 0
+          fi
+          rm -f scripts/release-audit-payment-fixes.py
+          git add -A
+          git diff --cached --check
+          git config user.name "carmazium-audit-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "fix: harden CarMazium release payment flows"
+          git push origin HEAD:release-audit-source-2026-09-11
