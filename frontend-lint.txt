@@ -1,0 +1,996 @@
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/HomeClient.tsx
+    6:153  warning  'Clock' is defined but never used                                @typescript-eslint/no-unused-vars
+    9:10   warning  'FeaturedBadge' is defined but never used                        @typescript-eslint/no-unused-vars
+   53:9    warning  'y' is assigned a value but never used                           @typescript-eslint/no-unused-vars
+   54:9    warning  'opacity' is assigned a value but never used                     @typescript-eslint/no-unused-vars
+  504:56   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/about/page.tsx
+   4:17  warning  'Globe' is defined but never used                     @typescript-eslint/no-unused-vars
+   4:24  warning  'Award' is defined but never used                     @typescript-eslint/no-unused-vars
+   4:31  warning  'TrendingUp' is defined but never used                @typescript-eslint/no-unused-vars
+   4:43  warning  'Handshake' is defined but never used                 @typescript-eslint/no-unused-vars
+   5:29  warning  'useTransform' is defined but never used              @typescript-eslint/no-unused-vars
+  17:13  warning  'scrollYProgress' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/auctions/browse/page.tsx
+    8:5   warning  'Gavel' is defined but never used              @typescript-eslint/no-unused-vars
+    9:12  warning  'Trophy' is defined but never used             @typescript-eslint/no-unused-vars
+   12:30  warning  'FileText' is defined but never used           @typescript-eslint/no-unused-vars
+   12:40  warning  'Lock' is defined but never used               @typescript-eslint/no-unused-vars
+   12:46  warning  'Handshake' is defined but never used          @typescript-eslint/no-unused-vars
+   12:57  warning  'Banknote' is defined but never used           @typescript-eslint/no-unused-vars
+   13:5   warning  'Eye' is defined but never used                @typescript-eslint/no-unused-vars
+   13:10  warning  'TrendingUp' is defined but never used         @typescript-eslint/no-unused-vars
+   13:22  warning  'CreditCard' is defined but never used         @typescript-eslint/no-unused-vars
+   13:34  warning  'Box' is defined but never used                @typescript-eslint/no-unused-vars
+  450:12  warning  'track' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  450:19  warning  'setTrack' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/auctions/live/[id]/page.tsx
+    15:37  warning  'Handshake' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+    16:5   warning  'Gauge' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+    16:12  warning  'Fuel' is defined but never used                                                                                  @typescript-eslint/no-unused-vars
+    16:18  warning  'Car' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+    16:23  warning  'Cog' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+    16:28  warning  'Palette' is defined but never used                                                                               @typescript-eslint/no-unused-vars
+    16:37  warning  'DoorOpen' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+    16:47  warning  'Star' is defined but never used                                                                                  @typescript-eslint/no-unused-vars
+    17:5   warning  'FileText' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+    17:15  warning  'Wrench' is defined but never used                                                                                @typescript-eslint/no-unused-vars
+    17:23  warning  'Leaf' is defined but never used                                                                                  @typescript-eslint/no-unused-vars
+   111:62  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   143:37  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   301:8   warning  React Hook React.useEffect has a missing dependency: 'auction'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   365:23  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   380:23  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   422:23  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   755:46  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                   react/no-unescaped-entities
+   824:72  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                   react/no-unescaped-entities
+   824:91  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                   react/no-unescaped-entities
+  1045:62  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  1049:75  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  1241:88  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  1248:81  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  1635:40  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                   react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/auctions/won/[id]/page.tsx
+   11:43  warning  'PoundSterling' is defined but never used                                                                         @typescript-eslint/no-unused-vars
+  130:8   warning  React Hook React.useEffect has a missing dependency: 'profile'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/auth/accept-invite/page.tsx
+  14:19  warning  'profile' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/auth/callback/page.tsx
+    6:10  warning  'fetchWithRetry' is defined but never used  @typescript-eslint/no-unused-vars
+  107:31  error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  156:23  error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/auth/forgot-password/page.tsx
+  38:23  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  59:73  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  74:61  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/auth/login/page.tsx
+   32:42  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   32:66  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   32:88  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  193:43  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  216:24  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/auth/onboarding/page.tsx
+   42:12  warning  'isVerified' is assigned a value but never used                                                            @typescript-eslint/no-unused-vars
+  100:8   warning  React Hook useEffect has a missing dependency: 'router'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  121:23  error    Unexpected any. Specify a different type                                                                   @typescript-eslint/no-explicit-any
+  169:23  error    Unexpected any. Specify a different type                                                                   @typescript-eslint/no-explicit-any
+  193:23  error    Unexpected any. Specify a different type                                                                   @typescript-eslint/no-explicit-any
+  211:23  error    Unexpected any. Specify a different type                                                                   @typescript-eslint/no-explicit-any
+  273:39  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                            react/no-unescaped-entities
+  343:86  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                            react/no-unescaped-entities
+  500:78  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                            react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/auth/partners/page.tsx
+  67:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/auth/reset-password/page.tsx
+  45:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  55:89  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  84:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/auth/signup/page.tsx
+  150:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  304:94  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  354:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/blog/[slug]/page.tsx
+  113:14  warning  Unused eslint-disable directive (no problems were reported from '@next/next/no-page-custom-font')
+  154:98  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                    react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/buy-cars/[slug]/VehicleDetailsPageClient.tsx
+     7:10   warning  'AccordionItem' is defined but never used                                                                                                                                                                        @typescript-eslint/no-unused-vars
+    12:55   warning  'Cog' is defined but never used                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+    12:60   warning  'Music' is defined but never used                                                                                                                                                                                @typescript-eslint/no-unused-vars
+    12:204  warning  'Sparkles' is defined but never used                                                                                                                                                                             @typescript-eslint/no-unused-vars
+   133:23   error    Unexpected any. Specify a different type                                                                                                                                                                         @typescript-eslint/no-explicit-any
+   252:62   error    Unexpected any. Specify a different type                                                                                                                                                                         @typescript-eslint/no-explicit-any
+   367:8    warning  React Hook React.useEffect has missing dependencies: 'listing?.deliveryAvailable', 'listing?.deliveryMaxMiles', 'listing.latitude', and 'listing.longitude'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+   477:23   error    Unexpected any. Specify a different type                                                                                                                                                                         @typescript-eslint/no-explicit-any
+   520:23   error    Unexpected any. Specify a different type                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  1138:76   error    Unexpected any. Specify a different type                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  1147:69   error    Unexpected any. Specify a different type                                                                                                                                                                         @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/checkout/page.tsx
+  32:11  warning  'router' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  80:23  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/checkout/success/page.tsx
+  107:8  warning  React Hook useEffect has a missing dependency: 'trackEvent'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/compare/page.tsx
+  8:57  warning  'Fuel' is defined but never used      @typescript-eslint/no-unused-vars
+  8:63  warning  'Gauge' is defined but never used     @typescript-eslint/no-unused-vars
+  8:70  warning  'Cog' is defined but never used       @typescript-eslint/no-unused-vars
+  8:84  warning  'DoorOpen' is defined but never used  @typescript-eslint/no-unused-vars
+  8:94  warning  'Users' is defined but never used     @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/admin/analytics/page.tsx
+  416:140  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  416:150  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/admin/auctions/page.tsx
+   25:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   33:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   34:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   69:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   91:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   98:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  110:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/admin/blog/page.tsx
+  53:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/admin/dealer-verification/page.tsx
+   65:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   67:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  211:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  237:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  248:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  254:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  310:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  512:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/admin/dealers/page.tsx
+  21:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/admin/handovers/page.tsx
+    9:17  warning  'AlertTriangle' is defined but never used  @typescript-eslint/no-unused-vars
+   20:54  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   29:64  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   70:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   83:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  101:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  114:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/admin/hpi/page.tsx
+  58:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/admin/listings/page.tsx
+    7:10  warning  'Button' is defined but never used           @typescript-eslint/no-unused-vars
+   41:52  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   54:66  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   87:23  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  129:23  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  150:23  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  165:23  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  480:39  warning  'isSelf' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/admin/messages/page.tsx
+  42:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/admin/page.tsx
+  40:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/admin/transactions/page.tsx
+   48:9   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  108:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/admin/users/page.tsx
+   16:46   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+   44:23   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+   53:8    warning  React Hook React.useEffect has a missing dependency: 'fetchUsers'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   71:23   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+   95:23   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  108:23   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  268:47   warning  'isActive' is assigned a value but never used                                                                        @typescript-eslint/no-unused-vars
+  419:95   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                      react/no-unescaped-entities
+  419:104  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                      react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/buyer/bids/page.tsx
+  64:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  78:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/buyer/messages/page.tsx
+  40:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/buyer/offers/page.tsx
+   38:10  warning  'StatusMessage' is defined but never used  @typescript-eslint/no-unused-vars
+  166:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  290:27  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  310:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  324:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  338:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  352:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  364:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  373:23  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/buyer/settings/page.tsx
+   77:23   error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  197:128  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/buyer/watchlist/page.tsx
+  9:26  warning  'Trash2' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/auctions/page.tsx
+  177:23  error    Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+  189:23  error    Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+  203:5   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+  224:28  error    Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+  263:23  error    Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+  276:23  error    Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+  302:23  error    Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+  315:23  error    Unexpected any. Specify a different type                                                        @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/crm/page.tsx
+    4:8   warning  'Link' is defined but never used          @typescript-eslint/no-unused-vars
+    7:5   warning  'Kanban' is defined but never used        @typescript-eslint/no-unused-vars
+    8:14  warning  'ChevronRight' is defined but never used  @typescript-eslint/no-unused-vars
+    8:41  warning  'ArrowUpRight' is defined but never used  @typescript-eslint/no-unused-vars
+    9:30  warning  'Activity' is defined but never used      @typescript-eslint/no-unused-vars
+   41:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   50:52  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   52:66  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   60:27  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   79:49  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   93:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  238:46  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  255:49  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  274:49  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  291:45  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  300:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  415:79  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/earnings/page.tsx
+    4:8    warning  'Link' is defined but never used                                 @typescript-eslint/no-unused-vars
+    9:5    warning  'Calendar' is defined but never used                             @typescript-eslint/no-unused-vars
+   17:5    warning  'ChevronRight' is defined but never used                         @typescript-eslint/no-unused-vars
+   19:5    warning  'Receipt' is defined but never used                              @typescript-eslint/no-unused-vars
+   27:41   warning  'SaleRecord' is defined but never used                           @typescript-eslint/no-unused-vars
+  198:136  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  250:164  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  250:169  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  288:80   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  291:96   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  297:75   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/finance/page.tsx
+    4:10   warning  'Button' is defined but never used        @typescript-eslint/no-unused-vars
+    5:70   warning  'AlertCircle' is defined but never used   @typescript-eslint/no-unused-vars
+    5:83   warning  'ShieldCheck' is defined but never used   @typescript-eslint/no-unused-vars
+    5:118  warning  'BarChart3' is defined but never used     @typescript-eslint/no-unused-vars
+   22:60   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   36:49   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   48:49   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   56:23   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  146:64   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/inventory/page.tsx
+   10:18   warning  'Filter' is defined but never used          @typescript-eslint/no-unused-vars
+   11:34   warning  'ShieldCheck' is defined but never used     @typescript-eslint/no-unused-vars
+   17:10   warning  'publishListing' is defined but never used  @typescript-eslint/no-unused-vars
+   27:62   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+   28:63   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+   29:63   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+   30:63   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+   31:64   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+   34:42   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+   85:70   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  100:70   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  103:70   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  109:76   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  123:49   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  134:37   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  160:23   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  178:37   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  210:23   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  311:64   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  412:124  error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  420:123  error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  423:88   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  474:72   error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  613:144  error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  622:143  error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+  626:108  error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/layout.tsx
+   34:23  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   58:50  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  119:23  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  145:42  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/messages/page.tsx
+   4:35  warning  'ShieldCheck' is defined but never used                                                         @typescript-eslint/no-unused-vars
+   4:58  warning  'Shield' is defined but never used                                                              @typescript-eslint/no-unused-vars
+  38:5   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/my-offers/page.tsx
+    8:13  warning  'Tag' is defined but never used                                  @typescript-eslint/no-unused-vars
+   61:23  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   73:23  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  176:70  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/offers/page.tsx
+   20:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   38:49  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   69:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  151:53  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  236:61  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/page.tsx
+    8:27  warning  'Users' is defined but never used                                                                                            @typescript-eslint/no-unused-vars
+    9:17  warning  'ArrowUpRight' is defined but never used                                                                                     @typescript-eslint/no-unused-vars
+   10:11  warning  'Activity' is defined but never used                                                                                         @typescript-eslint/no-unused-vars
+   10:21  warning  'Sparkles' is defined but never used                                                                                         @typescript-eslint/no-unused-vars
+   10:44  warning  'HeartHandshake' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+   10:60  warning  'Zap' is defined but never used                                                                                              @typescript-eslint/no-unused-vars
+   35:46  error    Unexpected any. Specify a different type                                                                                     @typescript-eslint/no-explicit-any
+   46:8   warning  React Hook React.useEffect has a missing dependency: 'fetchDashboardData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   52:35  error    Unexpected any. Specify a different type                                                                                     @typescript-eslint/no-explicit-any
+   53:35  error    Unexpected any. Specify a different type                                                                                     @typescript-eslint/no-explicit-any
+   53:49  error    Unexpected any. Specify a different type                                                                                     @typescript-eslint/no-explicit-any
+  100:23  error    Unexpected any. Specify a different type                                                                                     @typescript-eslint/no-explicit-any
+  322:86  error    Unexpected any. Specify a different type                                                                                     @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/purchases/page.tsx
+  50:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/put-on-auction/page.tsx
+   34:50  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   57:27  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   85:23  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  223:98  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/settings/page.tsx
+    8:5   warning  'Settings' is defined but never used      @typescript-eslint/no-unused-vars
+   52:49  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   96:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  123:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  144:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/dealer/team/page.tsx
+    8:23  warning  'MoreVertical' is defined but never used  @typescript-eslint/no-unused-vars
+    8:67  warning  'Star' is defined but never used          @typescript-eslint/no-unused-vars
+   17:58  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   25:46  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   26:64  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   43:59  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   43:75  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  183:57  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  237:70  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/finance/messages/page.tsx
+  35:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/finance/page.tsx
+  5:48  warning  'DollarSign' is defined but never used  @typescript-eslint/no-unused-vars
+  5:70  warning  'TrendingUp' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/insurance/messages/page.tsx
+  35:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/insurance/page.tsx
+  5:39  warning  'XCircle' is defined but never used     @typescript-eslint/no-unused-vars
+  5:71  warning  'TrendingUp' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/page.tsx
+  27:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/seller/auctions/page.tsx
+    11:16   warning  'Users' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+    11:23   warning  'TrendingUp' is defined but never used                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+    16:10   warning  'Button' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+   165:23   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   179:5    warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+   216:28   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   257:23   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   270:23   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   284:23   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   299:23   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   325:23   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   358:23   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   376:23   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   668:49   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   727:134  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   735:133  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   738:92   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   831:61   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+   905:146  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   913:145  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   916:104  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  1054:140  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                          react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/seller/earnings/page.tsx
+    4:8   warning  'Link' is defined but never used          @typescript-eslint/no-unused-vars
+   15:5   warning  'Filter' is defined but never used        @typescript-eslint/no-unused-vars
+   17:5   warning  'ChevronRight' is defined but never used  @typescript-eslint/no-unused-vars
+   26:60  warning  'SaleRecord' is defined but never used    @typescript-eslint/no-unused-vars
+  242:80  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  245:96  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  251:75  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  256:88  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/seller/messages/page.tsx
+  38:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/seller/offers/page.tsx
+  200:5    warning  'listingId' is defined but never used     @typescript-eslint/no-unused-vars
+  248:37   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  248:65   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  248:103  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  248:143  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  249:54   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  249:95   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  533:27   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  585:23   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  607:23   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  620:23   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  634:23   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  646:23   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/seller/page.tsx
+  34:12  warning  'error' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  48:27  error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/seller/settings/page.tsx
+   53:36   error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   53:97   error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   54:36   error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   54:107  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   55:37   error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   56:41   error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   57:46   error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   81:23   error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  275:108  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/service/messages/page.tsx
+  35:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/dashboard/user/page.tsx
+    23:5    warning  'ArrowUpRight' is defined but never used                                                                                                  @typescript-eslint/no-unused-vars
+    24:5    warning  'ArrowDownRight' is defined but never used                                                                                                @typescript-eslint/no-unused-vars
+    25:5    warning  'Calendar' is defined but never used                                                                                                      @typescript-eslint/no-unused-vars
+    36:5    warning  'XCircle' is defined but never used                                                                                                       @typescript-eslint/no-unused-vars
+    56:10   warning  'FeaturedBadge' is defined but never used                                                                                                 @typescript-eslint/no-unused-vars
+    77:5    warning  'getMyBids' is defined but never used                                                                                                     @typescript-eslint/no-unused-vars
+    90:10   warning  'SaleRecord' is defined but never used                                                                                                    @typescript-eslint/no-unused-vars
+   159:8    warning  React Hook React.useEffect has missing dependencies: 'fetchStats' and 'refreshRooms'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+   172:11   warning  'tabs' is assigned a value but never used                                                                                                 @typescript-eslint/no-unused-vars
+   328:105  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                           react/no-unescaped-entities
+   383:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+   409:46   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                           react/no-unescaped-entities
+   519:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+   538:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+   554:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+   569:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+   960:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+   972:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  1205:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  1219:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  1233:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  1251:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  1266:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  1687:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  1767:128  error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  1821:64   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  1824:80   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  1848:62   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  1908:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  1952:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  1973:23   error    Unexpected any. Specify a different type                                                                                                  @typescript-eslint/no-explicit-any
+  2045:108  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                           react/no-unescaped-entities
+  2164:100  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                           react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/finance/page.tsx
+  25:99  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/how-it-works/page.tsx
+  309:44  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  309:52  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/insurance/page.tsx
+  65:8  warning  React Hook React.useEffect has a missing dependency: 'load'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/layout.tsx
+  11:10  warning  'Providers' is defined but never used            @typescript-eslint/no-unused-vars
+  26:7   warning  'poppins' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  33:7   warning  'montserrat' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/pricing/page.tsx
+  4:46  warning  'Camera' is defined but never used         @typescript-eslint/no-unused-vars
+  5:5   warning  'Tag' is defined but never used            @typescript-eslint/no-unused-vars
+  5:10  warning  'BarChart3' is defined but never used      @typescript-eslint/no-unused-vars
+  5:33  warning  'ArrowRight' is defined but never used     @typescript-eslint/no-unused-vars
+  6:15  warning  'MessageSquare' is defined but never used  @typescript-eslint/no-unused-vars
+  6:50  warning  'Clock' is defined but never used          @typescript-eslint/no-unused-vars
+  6:57  warning  'Users' is defined but never used          @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/profile/page.tsx
+   8:23  warning  'Wrench' is defined but never used        @typescript-eslint/no-unused-vars
+   8:31  warning  'CreditCard' is defined but never used    @typescript-eslint/no-unused-vars
+  51:25  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  80:25  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/reviews/page.tsx
+   3:8    warning  'Link' is defined but never used                                 @typescript-eslint/no-unused-vars
+   4:8    warning  'Image' is defined but never used                                @typescript-eslint/no-unused-vars
+   5:10   warning  'Button' is defined but never used                               @typescript-eslint/no-unused-vars
+  16:160  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  53:92   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  53:233  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/search/page.tsx
+  256:15  warning  'fromUrl' is assigned a value but never used                                                                                                          @typescript-eslint/no-unused-vars
+  413:8   warning  React Hook React.useCallback has missing dependencies: 'userLocation.lat' and 'userLocation.lng'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/sell/page.tsx
+  23:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/seller/[id]/page.tsx
+  11:82  warning  'AlertCircle' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/services/page.tsx
+  117:8    warning  React Hook React.useEffect has missing dependencies: 'contactEmail' and 'contactPhone'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  398:235  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                             react/no-unescaped-entities
+  454:246  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                             react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/app/vehicle/[id]/VehicleDetailPageClient.tsx
+    14:50   warning  'Cog' is defined but never used                                                                                             @typescript-eslint/no-unused-vars
+    14:55   warning  'Music' is defined but never used                                                                                           @typescript-eslint/no-unused-vars
+    16:82   warning  'Sparkles' is defined but never used                                                                                        @typescript-eslint/no-unused-vars
+    16:97   warning  'CreditCard' is defined but never used                                                                                      @typescript-eslint/no-unused-vars
+    90:77   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                             react/no-unescaped-entities
+   144:11   warning  'sellerMin' is assigned a value but never used                                                                              @typescript-eslint/no-unused-vars
+   210:23   error    Unexpected any. Specify a different type                                                                                    @typescript-eslint/no-explicit-any
+   496:23   error    Unexpected any. Specify a different type                                                                                    @typescript-eslint/no-explicit-any
+   523:27   error    Unexpected any. Specify a different type                                                                                    @typescript-eslint/no-explicit-any
+   530:8    warning  React Hook React.useEffect has a missing dependency: 'hasInitialListing'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   602:23   error    Unexpected any. Specify a different type                                                                                    @typescript-eslint/no-explicit-any
+   880:58   error    Unexpected any. Specify a different type                                                                                    @typescript-eslint/no-explicit-any
+   901:89   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                             react/no-unescaped-entities
+  1207:77   error    Unexpected any. Specify a different type                                                                                    @typescript-eslint/no-explicit-any
+  1207:111  error    Unexpected any. Specify a different type                                                                                    @typescript-eslint/no-explicit-any
+  1207:133  error    Unexpected any. Specify a different type                                                                                    @typescript-eslint/no-explicit-any
+  1243:76   error    Unexpected any. Specify a different type                                                                                    @typescript-eslint/no-explicit-any
+  1251:69   error    Unexpected any. Specify a different type                                                                                    @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/admin/HpiPdfUpload.tsx
+  69:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  81:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/admin/HpiReportForm.tsx
+  180:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/analytics/GoogleConsentMode.tsx
+  42:9  warning  `next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document  @next/next/no-before-interactive-script-outside-document
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/auctions/HowAuctionsWork.tsx
+  5:18  warning  'AnimatePresence' is defined but never used  @typescript-eslint/no-unused-vars
+  7:45  warning  'ChevronRight' is defined but never used     @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/chat/ChatWindow.tsx
+   43:11  warning  'typingTimeoutRef' is assigned a value but never used                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+  122:8   warning  React Hook React.useEffect has a missing dependency: 'room.otherUser?.id'. Either include it or remove the dependency array. If 'setMessages' needs the current value of 'room.otherUser.id', you can also switch to useReducer instead of useState and read 'room.otherUser.id' in the reducer  react-hooks/exhaustive-deps
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dashboard/DashboardSidebar.tsx
+   15:5  warning  'Clock' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+   22:5  warning  'Banknote' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+   29:5  warning  'Kanban' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+  206:8  warning  React Hook React.useMemo has a missing dependency: 'links'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dashboard/DeleteAccountSection.tsx
+  29:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dashboard/KycOverlayForm.tsx
+   27:3   warning  'Receipt' is defined but never used           @typescript-eslint/no-unused-vars
+  102:19  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  256:11  warning  'profile' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  336:21  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  399:19  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  487:19  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  648:21  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dashboard/ListingEditModal.tsx
+  124:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  128:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  285:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dashboard/PageHeader.tsx
+  2:10  warning  'LucideIcon' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dashboard/ProfileCompletionGate.tsx
+  70:23  error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  95:25  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dashboard/ReceiptsTab.tsx
+  25:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dashboard/RecordSaleModal.tsx
+  43:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dashboard/UserDetailModal.tsx
+   53:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  210:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  216:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  224:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  253:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  265:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  467:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  479:76  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dealer/BidVolumeChart.tsx
+  25:5  warning  'fillColor' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dealer/BulkImportModal.tsx
+    4:87   warning  'Car' is defined but never used                                  @typescript-eslint/no-unused-vars
+    7:57   warning  'BodyTypeValue' is defined but never used                        @typescript-eslint/no-unused-vars
+    7:77   warning  'VehicleTypeValue' is defined but never used                     @typescript-eslint/no-unused-vars
+    7:100  warning  'EuroStandardValue' is defined but never used                    @typescript-eslint/no-unused-vars
+  176:52   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  188:60   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  195:27   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  274:179  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  274:190  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dealer/DateRangeFilter.tsx
+  4:20  warning  'ChevronDown' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dealer/DealerQuickList.tsx
+    8:34   warning  'Upload' is defined but never used                               @typescript-eslint/no-unused-vars
+   11:49   warning  'ChevronRight' is defined but never used                         @typescript-eslint/no-unused-vars
+   13:8    warning  'Image' is defined but never used                                @typescript-eslint/no-unused-vars
+   30:7    warning  'EDIT_REQUIRED' is assigned a value but never used               @typescript-eslint/no-unused-vars
+   47:66   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   83:27   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  140:54   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  143:23   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  175:25   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  248:47   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  250:52   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  265:44   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  297:64   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  298:63   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  315:25   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  336:23   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  385:82   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  385:101  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dealer/InventoryAgingChart.tsx
+  69:11  warning  'totalActive' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dealer/LeadSourceChart.tsx
+  49:9  error  Error: Cannot reassign variable after render completes
+
+Reassigning `cumulativeOffset` after render has completed can cause inconsistent behavior on subsequent renders. Consider using state instead.
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dealer/LeadSourceChart.tsx:49:9
+  47 |         const dashLength = pct * circumference
+  48 |         const dashOffset = circumference - cumulativeOffset
+> 49 |         cumulativeOffset += dashLength
+     |         ^^^^^^^^^^^^^^^^ Cannot reassign `cumulativeOffset` after render completes
+  50 |         return { ...row, color, pct, dashLength, dashOffset }
+  51 |     })
+  52 |  react-hooks/immutability
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dealer/OfferDonutChart.tsx
+  69:9  error  Error: Cannot reassign variable after render completes
+
+Reassigning `cumulativeOffset` after render has completed can cause inconsistent behavior on subsequent renders. Consider using state instead.
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dealer/OfferDonutChart.tsx:69:9
+  67 |         const dashLength = pct * circumference
+  68 |         const dashOffset = circumference - cumulativeOffset
+> 69 |         cumulativeOffset += dashLength
+     |         ^^^^^^^^^^^^^^^^ Cannot reassign `cumulativeOffset` after render completes
+  70 |
+  71 |         return {
+  72 |             ...seg,  react-hooks/immutability
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/dealer/VehicleCard.tsx
+  114:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/features/BrowseByBodyType.tsx
+  7:5  warning  'BODY_TYPE_ICONS' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/features/DiscoverSection.tsx
+  14:21  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/features/DiscoverSection.tsx:14:21
+  12 |     const { resolvedTheme } = useTheme()
+  13 |     const [mounted, setMounted] = useState(false)
+> 14 |     useEffect(() => setMounted(true), [])
+     |                     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  15 |     const isLight = mounted && resolvedTheme === "light"
+  16 |
+  17 |     return (  react-hooks/set-state-in-effect
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/features/ImportListingModal.tsx
+  108:21  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  130:21  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  159:21  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  197:69  warning  'i' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+  260:41  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/features/LocationPromptModal.tsx
+  58:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/features/MaziumWidget.tsx
+  169:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/features/PromoCarousel.tsx
+   8:10  warning  'ArrowRight' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+  63:13  error    Error: Cannot access variable before it is declared
+
+`nextSlide` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/features/PromoCarousel.tsx:63:13
+  61 |     useEffect(() => {
+  62 |         const timer = setInterval(() => {
+> 63 |             nextSlide()
+     |             ^^^^^^^^^ `nextSlide` accessed before it is declared
+  64 |         }, 8000)
+  65 |         return () => clearInterval(timer)
+  66 |     }, [current])
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/features/PromoCarousel.tsx:68:5
+  66 |     }, [current])
+  67 |
+> 68 |     const nextSlide = () => {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+> 69 |         setDirection(1)
+     | ^^^^^^^^^^^^^^^^^^^^^^^
+> 70 |         setCurrent((prev) => (prev + 1) % slides.length)
+     | ^^^^^^^^^^^^^^^^^^^^^^^
+> 71 |     }
+     | ^^^^^^ `nextSlide` is declared here
+  72 |
+  73 |     const prevSlide = () => {
+  74 |         setDirection(-1)  react-hooks/immutability
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/features/TestimonialsSection.tsx
+   4:18  warning  'useScroll' is defined but never used                            @typescript-eslint/no-unused-vars
+   4:29  warning  'useTransform' is defined but never used                         @typescript-eslint/no-unused-vars
+   6:10  warning  'ArrowLeft' is defined but never used                            @typescript-eslint/no-unused-vars
+   6:21  warning  'ArrowRight' is defined but never used                           @typescript-eslint/no-unused-vars
+  69:32  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/hpi/HpiReportModal.tsx
+    4:35  warning  'Download' is defined but never used      @typescript-eslint/no-unused-vars
+   95:25  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  123:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/layout/Header.tsx
+  12:10  warning  'getPendingOffersCount' is defined but never used  @typescript-eslint/no-unused-vars
+  38:13  warning  'unreadCount' is assigned a value but never used   @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/layout/NotificationBell.tsx
+  87:12  warning  'pendingOffers' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/listing/DamageAnalysisTool.tsx
+  2:29  warning  'AlertCircle' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/listing/EnquireModal.tsx
+  59:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/listing/ImageUpload.tsx
+   4:38  warning  'GripVertical' is defined but never used              @typescript-eslint/no-unused-vars
+  68:11  warning  'getSortedImages' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  69:15  warning  'order' is assigned a value but never used            @typescript-eslint/no-unused-vars
+  70:15  warning  'sorted' is assigned a value but never used           @typescript-eslint/no-unused-vars
+  70:42  warning  'a' is defined but never used                         @typescript-eslint/no-unused-vars
+  70:45  warning  'b' is defined but never used                         @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/listing/ListingWizard.tsx
+    10:17   warning  'TrendingDown' is defined but never used                                                                                            @typescript-eslint/no-unused-vars
+    10:31   warning  'Upload' is defined but never used                                                                                                  @typescript-eslint/no-unused-vars
+    10:39   warning  'Eye' is defined but never used                                                                                                     @typescript-eslint/no-unused-vars
+    11:67   warning  'Handshake' is defined but never used                                                                                               @typescript-eslint/no-unused-vars
+    11:105  warning  'ChevronDown' is defined but never used                                                                                             @typescript-eslint/no-unused-vars
+    11:124  warning  'FileText' is defined but never used                                                                                                @typescript-eslint/no-unused-vars
+    11:134  warning  'Activity' is defined but never used                                                                                                @typescript-eslint/no-unused-vars
+    22:10   warning  'uploadImage' is defined but never used                                                                                             @typescript-eslint/no-unused-vars
+    98:17   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+   225:39   warning  '_isUnlocked' is defined but never used                                                                                             @typescript-eslint/no-unused-vars
+   225:62   warning  '_onUnlock' is defined but never used                                                                                               @typescript-eslint/no-unused-vars
+   261:37   warning  'authLoading' is assigned a value but never used                                                                                    @typescript-eslint/no-unused-vars
+   293:12   warning  'damageImageCount' is assigned a value but never used                                                                               @typescript-eslint/no-unused-vars
+   309:12   warning  'editLoading' is assigned a value but never used                                                                                    @typescript-eslint/no-unused-vars
+   325:27   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+   397:51   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+   528:8    warning  React Hook React.useEffect has a missing dependency: 'formData.writeOffCategory'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   715:48   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+   716:56   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+   741:50   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+   774:41   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+   825:58   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  1012:25   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  1124:44   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  1358:98   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  1427:59   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  1499:89   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  1515:88   error    Unexpected any. Specify a different type                                                                                            @typescript-eslint/no-explicit-any
+  2845:125  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                     react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/ui/Input.tsx
+  4:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/ui/TestimonialCard.tsx
+  54:17  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  54:27  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/components/ui/Textarea.tsx
+  4:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/context/AuthContext.tsx
+   18:21  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+   19:25  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+   47:25  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+   79:27  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+  152:8   warning  React Hook useEffect has a missing dependency: 'fetchProfile'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/context/ChatContext.tsx
+   60:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   61:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  138:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  155:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  159:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  257:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  264:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/context/CompareContext.tsx
+  26:17  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/context/CompareContext.tsx:26:17
+  24 |         if (saved) {
+  25 |             try {
+> 26 |                 setCompareList(JSON.parse(saved))
+     |                 ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  27 |             } catch (e) {
+  28 |                 console.error("Failed to parse compare list", e)
+  29 |             }  react-hooks/set-state-in-effect
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/context/LocationContext.tsx
+  36:21  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/context/LocationContext.tsx:36:21
+  34 |                 const c = JSON.parse(raw)
+  35 |                 if (Date.now() < c.expiresAt) {
+> 36 |                     setLocation({ lat: c.lat, lng: c.lng, postcode: null, source: 'geo' })
+     |                     ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  37 |                     return
+  38 |                 }
+  39 |             }  react-hooks/set-state-in-effect
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/hooks/useUserLocation.ts
+  24:21  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/hooks/useUserLocation.ts:24:21
+  22 |                 const cached = JSON.parse(raw)
+  23 |                 if (Date.now() < cached.expiresAt) {
+> 24 |                     setLocation({ lat: cached.lat, lng: cached.lng })
+     |                     ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  25 |                     setLoading(false)
+  26 |                     return
+  27 |                 }  react-hooks/set-state-in-effect
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/lib/adminApi.ts
+   35:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   40:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   45:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   52:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   57:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   62:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   67:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   72:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   80:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   88:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   93:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   98:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  103:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  108:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  118:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  123:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  131:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  135:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  143:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  147:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  156:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  161:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  169:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  182:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  187:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/lib/aiApi.ts
+  50:66  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/lib/apiClient.ts
+   43:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   96:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  107:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/lib/auctionApi.ts
+  173:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  180:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  189:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  244:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  248:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/lib/chatApi.ts
+  176:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/lib/fetchWithRetry.ts
+  26:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/lib/listingApi.ts
+   690:14  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+   780:34  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   786:74  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1207:72  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1217:68  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1218:42  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/lib/notificationsApi.ts
+  12:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/lib/supabase.ts
+  65:10  warning  'isRetryableError' is defined but never used  @typescript-eslint/no-unused-vars
+  65:34  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  86:34  error    Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+
+/home/runner/work/Carmazium-Trade/Carmazium-Trade/src/lib/tradexchangeApi.ts
+  217:49  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  218:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  228:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  258:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  315:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 628 problems (418 errors, 210 warnings)
+  0 errors and 10 warnings potentially fixable with the `--fix` option.
+
