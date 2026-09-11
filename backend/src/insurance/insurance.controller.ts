@@ -27,6 +27,12 @@ import { InsuranceService } from './insurance.service';
 export class InsuranceController {
     constructor(private readonly insuranceService: InsuranceService) { }
 
+    @Get('providers')
+    @ApiOperation({ summary: 'List active insurance providers available for quote requests' })
+    async listProviders(): Promise<StandardResponse<Array<{ id: string; companyName: string }>>> {
+        return new StandardResponse(await this.insuranceService.listProviders());
+    }
+
     @Post('quote')
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Request insurance quote' })
