@@ -23,7 +23,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -f scripts/release-audit-payment-fixes.py ]; then
+          if [ -f scripts/run-release-audit-payment-fixes.py ]; then
+            python3 scripts/run-release-audit-payment-fixes.py
+          elif [ -f scripts/release-audit-payment-fixes.py ]; then
             python3 scripts/release-audit-payment-fixes.py
           fi
           rm -f .tmp-finance-marker
@@ -86,7 +88,7 @@ jobs:
             echo "No generated source changes to commit"
             exit 0
           fi
-          rm -f scripts/release-audit-payment-fixes.py
+          rm -f scripts/release-audit-payment-fixes.py scripts/run-release-audit-payment-fixes.py
           git add -A
           git diff --cached --check
           git config user.name "carmazium-audit-bot"
