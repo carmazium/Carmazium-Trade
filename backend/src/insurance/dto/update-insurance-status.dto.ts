@@ -1,30 +1,39 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsPositive } from 'class-validator';
-import { InsuranceQuoteStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
+import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, MaxLength } from 'class-validator';
+import { InsuranceQuoteStatus } from '@prisma/client';
 
-const InsuranceQuoteStatusEnum = {
-    PENDING: 'PENDING',
+const PartnerInsuranceStatusEnum = {
     QUOTED: 'QUOTED',
-    ACCEPTED: 'ACCEPTED',
     EXPIRED: 'EXPIRED',
     REJECTED: 'REJECTED',
-};
+} as const;
 
 export class UpdateInsuranceStatusDto {
     @ApiProperty({
-        description: 'New status',
-        enum: Object.values(InsuranceQuoteStatusEnum),
-        example: InsuranceQuoteStatusEnum.QUOTED,
+        description: 'Partner-controlled quote status. Customers accept quotes through the dedicated accept endpoint.',
+        enum: Object.values(PartnerInsuranceStatusEnum),
+        example: PartnerInsuranceStatusEnum.QUOTED,
     })
     @IsNotEmpty()
-    @IsEnum(InsuranceQuoteStatusEnum)
+    @IsEnum(PartnerInsuranceStatusEnum)
     status: InsuranceQuoteStatus;
 
-    @ApiProperty({ description: 'Annual price (if quoted)', required: false })
+    @ApiProperty({ description: 'Quoted annual premium in GBP. Required when status is QUOTED.', required: false, example: 649.99 })
     @IsOptional()
     @Type(() => Number)
     @IsNumber({ maxDecimalPlaces: 2 })
     @IsPositive()
-    annualPrice?: number;
+    quotedPrice?: number;
+
+    @ApiProperty({ description: 'Cover type/summary. Required when status is QUOTED.', required: false, example: 'Comprehensive' })
+    @IsOptional()
+    @IsString()
+    @MaxLength(120)
+    coverageType?: string;
+
+    @ApiProperty({ description: 'Optional quote expiry timestamp', required: false })
+    @IsOptional()
+    @IsDateString()
+    expiryDate?: string;
 }
