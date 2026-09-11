@@ -120,7 +120,13 @@ jobs:
           text2, count = denied_block.subn('', text, count=1)
           if count != 1:
               raise SystemExit(f'Expected one obsolete denied stage, found {count}')
-          p.write_text(text2, encoding='utf-8')
+          text = text2
+          old_buckets = 'const buckets: Record<HandoverStage, Auction[]> = { fee_due: [], in_progress: [], complete: [], denied: [] }'
+          new_buckets = 'const buckets: Record<HandoverStage, Auction[]> = { fee_due: [], in_progress: [], complete: [] }'
+          if old_buckets not in text:
+              raise SystemExit('Expected obsolete denied bucket was not found')
+          text = text.replace(old_buckets, new_buckets)
+          p.write_text(text, encoding='utf-8')
           PY
 
       - name: Set up Node 24
