@@ -1,0 +1,139 @@
+name: Auction lifecycle separation patch
+
+on:
+  push:
+    branches:
+      - final/carmazium-completion
+    paths:
+      - .github/workflows/auction-lifecycle-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out completion branch
+        uses: actions/checkout@v4
+        with:
+          ref: final/carmazium-completion
+
+      - name: Apply targeted lifecycle patches
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_exact(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8-sig')
+              if old not in text:
+                  raise SystemExit(f'Expected text not found in {path}: {old[:120]!r}')
+              text = text.replace(old, new)
+              p.write_text(text, encoding='utf-8')
+
+          # Proof rejection is a resubmission path, never a buyer-refund trigger.
+          replace_exact(
+              'src/app/dashboard/admin/handovers/page.tsx',
+              "if (!confirm('Deny this handover? A £100 refund will be issued to the buyer (Stripe) and the seller can resubmit proof.')) return",
+              "if (!confirm('Reject this handover proof? No buyer refund will be issued. The seller can upload clearer proof. Use the separate failed-sale action only if the sale genuinely failed or was cancelled.')) return",
+          )
+          replace_exact(
+              'src/app/dashboard/admin/handovers/page.tsx',
+              'Review seller-submitted handover proofs. Approve to release the £100 seller bonus, or deny to refund the buyer.',
+              'Review seller-submitted handover proofs. Approve to release the £100 seller bonus, or reject unclear proof and ask the seller to resubmit. Rejecting proof does not refund the buyer.',
+          )
+          replace_exact(
+              'src/app/dashboard/admin/handovers/page.tsx',
+              'Deny & Refund £100',
+              'Reject Proof — Resubmit',
+          )
+
+          # Swagger/admin copy must describe what the endpoint actually does.
+          replace_exact(
+              'backend/src/admin/admin.controller.ts',
+              "@ApiOperation({ summary: 'Deny a handover proof and refund buyer £100' })",
+              "@ApiOperation({ summary: 'Reject unclear handover proof and allow seller resubmission; no buyer refund' })",
+          )
+
+          # Remove the legacy no-reason refund call from proof denial entirely.
+          p = Path('backend/src/admin/admin.service.ts')
+          text = p.read_text(encoding='utf-8-sig')
+          pattern = re.compile(
+              r"\n\s*// Issue £100 partial Stripe refund to buyer if they paid\n"
+              r"\s*if \(auction\.buyerFeePaid && auction\.buyerFeeTransactionId\) \{.*?\n\s*\}\n\n"
+              r"(\s*// Purge the denied proof from Supabase storage)",
+              re.S,
+          )
+          replacement = (
+              "\n\n        // Rejecting evidence is not a failed sale. Do not refund the buyer here;\n"
+              "        // the seller simply gets another chance to upload clearer proof.\n\n"
+              r"\1"
+          )
+          text2, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'Expected one legacy handover refund block, found {count}')
+          p.write_text(text2, encoding='utf-8')
+
+          # Add the explicit failed-sale action to admin auction management.
+          replace_exact(
+              'src/app/dashboard/admin/auctions/page.tsx',
+              'import { getAdminAuctions, getAllDealers, assignAuctionWinner } from "@/lib/adminApi"',
+              'import { getAdminAuctions, getAllDealers, assignAuctionWinner } from "@/lib/adminApi"\nimport { FailedSaleRefundButton } from "@/components/dashboard/FailedSaleRefundButton"',
+          )
+          marker = '''                                                    <button
+                                                        type="button"
+                                                        onClick={() => a.listing?.id && setEditListingId(a.listing.id)}'''
+          insertion = '''                                                    {a.status === 'ENDED' && a.winner && a.buyerFeePaid && !a.sellerBonusReleased && (
+                                                        <FailedSaleRefundButton auctionId={a.id} onCompleted={loadAuctions} />
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => a.listing?.id && setEditListingId(a.listing.id)}'''
+          replace_exact('src/app/dashboard/admin/auctions/page.tsx', marker, insertion)
+
+          # Remove obsolete buyer-facing state that equated rejected proof with refund.
+          p = Path('src/app/dashboard/dealer/auctions/won/page.tsx')
+          text = p.read_text(encoding='utf-8-sig')
+          text = text.replace('Loader2, Trophy, Car, MessageSquare, CreditCard, CheckCircle2, XCircle,', 'Loader2, Trophy, Car, MessageSquare, CreditCard, CheckCircle2,')
+          text = text.replace('    | "denied"            // admin denied — refund on the way (or errored, admin alerted)\n', '')
+          denied_block = re.compile(
+              r"\n\s*denied: \{\n"
+              r"\s*label: \"Refund in progress\",\n"
+              r"\s*hint: \"The submitted proof wasn't accepted\. £100 of your £125 fee is being refunded to you\.\",\n"
+              r"\s*icon: XCircle,\n"
+              r"\s*tint: \"bg-red-500/10 text-red-400 border-red-500/25\",\n"
+              r"\s*\},",
+          )
+          text2, count = denied_block.subn('', text, count=1)
+          if count != 1:
+              raise SystemExit(f'Expected one obsolete denied stage, found {count}')
+          p.write_text(text2, encoding='utf-8')
+          PY
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Verify backend compiles
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Verify frontend compiles
+        run: |
+          npm ci
+          npm run build
+
+      - name: Commit verified lifecycle patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/src/admin/admin.service.ts backend/src/admin/admin.controller.ts src/app/dashboard/admin/handovers/page.tsx src/app/dashboard/admin/auctions/page.tsx src/app/dashboard/dealer/auctions/won/page.tsx
+          git commit -m "fix(auctions): separate proof rejection from failed-sale refunds"
+          git push origin HEAD:final/carmazium-completion
