@@ -43,8 +43,8 @@ export class CreatePaymentSheetDto {
     @ApiPropertyOptional({ description: 'Allowed platform payment type', default: 'COMMISSION' })
     @IsOptional()
     @IsString()
-    @IsIn(['COMMISSION', 'LISTING_FEE', 'HPI_REPORT', 'HPI_REPORT_EMAIL'])
-    type?: 'COMMISSION' | 'LISTING_FEE' | 'HPI_REPORT' | 'HPI_REPORT_EMAIL';
+    @IsIn(['COMMISSION', 'LISTING_FEE', 'HPI_REPORT'])
+    type?: 'COMMISSION' | 'LISTING_FEE' | 'HPI_REPORT';
 
     @ApiPropertyOptional({ description: 'ISO 4217 currency code', default: 'gbp' })
     @IsOptional()
