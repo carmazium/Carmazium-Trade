@@ -1,0 +1,89 @@
+name: Dependency remediation 93-95
+
+on:
+  push:
+    branches:
+      - final/carmazium-completion
+    paths:
+      - .github/workflows/dependency-remediation-93-95.yml
+
+permissions:
+  contents: write
+
+jobs:
+  remediate-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out completion branch
+        uses: actions/checkout@v4
+        with:
+          ref: final/carmazium-completion
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+
+      - name: Remediate frontend production dependencies
+        run: |
+          npm install --save-exact next@16.3.5 eslint-config-next@16.3.5
+          npm audit fix --omit=dev || true
+          npm ci
+          npm run build
+          npm audit --omit=dev --json > /tmp/frontend-audit-after.json || true
+
+      - name: Remediate backend production dependencies
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium
+          DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium
+        run: |
+          npm audit fix --omit=dev || true
+          npm ci
+          npx prisma validate
+          npm run build
+          npm test -- --runInBand payments/payments.service.spec.ts services/services.service.spec.ts auth/auth-security.spec.ts
+          npm audit --omit=dev --json > /tmp/backend-audit-after.json || true
+
+      - name: Enforce vulnerability improvement
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          function counts(path) {
+            const d = JSON.parse(fs.readFileSync(path, 'utf8'));
+            return d.metadata?.vulnerabilities || {};
+          }
+          const f = counts('/tmp/frontend-audit-after.json');
+          const b = counts('/tmp/backend-audit-after.json');
+          console.log('frontend', f);
+          console.log('backend', b);
+          if ((f.critical || 0) > 0) throw new Error('Frontend still has critical production vulnerabilities');
+          if ((b.critical || 0) > 0) throw new Error('Backend still has critical production vulnerabilities');
+          if ((f.high || 0) > 2) throw new Error('Frontend high vulnerabilities were not reduced enough');
+          if ((b.high || 0) > 12) throw new Error('Backend high vulnerabilities were not reduced enough');
+          NODE
+
+      - name: Upload post-remediation audit reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-after-93-95
+          path: |
+            /tmp/frontend-audit-after.json
+            /tmp/backend-audit-after.json
+          retention-days: 1
+
+      - name: Commit verified dependency remediation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json backend/package.json backend/package-lock.json
+          if git diff --cached --quiet; then
+            echo "No dependency changes to commit"
+            exit 0
+          fi
+          git commit -m "fix(deps): remediate production dependency vulnerabilities"
+          git push origin HEAD:final/carmazium-completion
