@@ -42,8 +42,19 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium
           DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium
         run: |
+          npm install --save-exact bcrypt@6.0.0
+          npm install --save-dev --save-exact @types/bcrypt@6.0.0
           npm audit fix --omit=dev || true
           npm ci
+          node - <<'NODE'
+          const bcrypt = require('bcrypt');
+          (async () => {
+            const hash = await bcrypt.hash('carmazium-dependency-smoke-test', 4);
+            const ok = await bcrypt.compare('carmazium-dependency-smoke-test', hash);
+            if (!ok) throw new Error('bcrypt 6 hash/compare smoke test failed');
+            console.log('bcrypt 6 hash/compare smoke test passed');
+          })().catch((e) => { console.error(e); process.exit(1); });
+          NODE
           npx prisma validate
           npm run build
           npm test -- --runInBand payments/payments.service.spec.ts services/services.service.spec.ts auth/auth-security.spec.ts
