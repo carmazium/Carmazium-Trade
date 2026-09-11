@@ -44,6 +44,7 @@ export interface MyServiceJob {
 export interface MyServiceOffer {
     id: string
     job_id: string
+    dealer_profile_id: string
     amount_pence: number
     status: TradeOfferStatus
     created_at: string
@@ -55,6 +56,33 @@ export interface MyServiceOffer {
         title: string
         status?: string | null
     } | null
+}
+
+export interface ProviderSummaryRow {
+    business_id: string
+    business_name: string
+    category: JobServiceCategory
+    open_offers: number
+    won_jobs: number
+    completed_jobs: number
+    gross_pence: number
+    fee_pence: number
+    net_pence: number
+}
+
+export interface ProviderLeadRow {
+    recipient_id: string
+    lead_type: LeadServiceCategory
+    lead_id: string
+    status: string
+    dealer_profile_id: string
+    created_at?: string | null
+    contact_name?: string | null
+    contact_email?: string | null
+    contact_phone?: string | null
+    vehicle_registration?: string | null
+    vehicle_details?: Record<string, unknown> | null
+    enquiry_details?: Record<string, unknown> | null
 }
 
 export interface ServiceOfferBoardRow {
@@ -127,16 +155,20 @@ function normaliseOfferStatus(status: string | null | undefined): TradeOfferStat
     return 'submitted'
 }
 
-/**
- * RLS-backed redacted marketplace feed. The database decides which service
- * categories the signed-in provider is approved to see; customer contact
- * details are intentionally not returned here.
- */
+export async function getMyProviderSummary(): Promise<ProviderSummaryRow[]> {
+    const { data, error } = await supabase.rpc('my_provider_summary')
+    if (error) throw tradeError(error, 'Could not load provider summary')
+    return (data ?? []) as ProviderSummaryRow[]
+}
+
+async function getMyProviderBusinessIds(): Promise<string[]> {
+    const summary = await getMyProviderSummary()
+    return [...new Set(summary.map(row => row.business_id).filter(Boolean))]
+}
+
+/** Redacted, RLS-backed provider marketplace feed. */
 export async function getProviderJobFeed(category: TradeServiceCategory | 'all' = 'all'): Promise<ProviderJobFeedRow[]> {
-    const { data, error } = await supabase.rpc(
-        'provider_job_feed',
-        category === 'all' ? {} : { _category: category },
-    )
+    const { data, error } = await supabase.rpc('provider_job_feed', category === 'all' ? {} : { _category: category })
     if (error) throw tradeError(error, 'Could not load available jobs')
     return (data ?? []) as ProviderJobFeedRow[]
 }
@@ -165,14 +197,18 @@ export async function withdrawServiceOffer(offerId: string): Promise<void> {
 }
 
 /**
- * Production uses the `tradexchange_*` table family. We deliberately load the
- * jobs separately instead of relying on a PostgREST relation so this keeps
- * working when the database is managed independently from Prisma's FK graph.
+ * Provider ledger only. Customers can legitimately see quotes on their own
+ * jobs through RLS, so this query additionally restricts rows to businesses
+ * the signed-in user is actually authorised to represent.
  */
 export async function getMyServiceOffers(): Promise<MyServiceOffer[]> {
+    const businessIds = await getMyProviderBusinessIds()
+    if (!businessIds.length) return []
+
     const { data: offers, error } = await supabase
         .from('tradexchange_offers')
-        .select('id, job_id, amount_pence, status, created_at, message, available_from')
+        .select('id, job_id, dealer_profile_id, amount_pence, status, created_at, message, available_from')
+        .in('dealer_profile_id', businessIds)
         .order('created_at', { ascending: false })
         .limit(200)
     if (error) throw tradeError(error, 'Could not load your quotes')
@@ -194,25 +230,27 @@ export async function getMyServiceOffers(): Promise<MyServiceOffer[]> {
         return {
             id: offer.id,
             job_id: offer.job_id,
+            dealer_profile_id: offer.dealer_profile_id,
             amount_pence: offer.amount_pence,
             status: normaliseOfferStatus(offer.status),
             created_at: offer.created_at,
             message: offer.message,
             available_from: offer.available_from,
-            service_jobs: job ? {
-                id: job.id,
-                category: fromDbCategory(job.service_type),
-                title: job.title,
-                status: job.status,
-            } : null,
+            service_jobs: job ? { id: job.id, category: fromDbCategory(job.service_type), title: job.title, status: job.status } : null,
         }
     })
 }
 
+/** Customer-posted jobs only, even for users who also have a provider role. */
 export async function getMyServiceJobs(): Promise<MyServiceJob[]> {
+    const { data: authData, error: authError } = await supabase.auth.getUser()
+    if (authError) throw tradeError(authError, 'Could not verify your account')
+    if (!authData.user) return []
+
     const { data, error } = await supabase
         .from('tradexchange_jobs')
         .select('id, service_type, title, description, status, pickup_postcode, delivery_postcode, service_postcode, requested_for, budget_pence, vehicle_label, agreed_amount_pence, platform_fee_pence, provider_amount_pence, provider_dealer_profile_id, created_at')
+        .eq('customer_user_id', authData.user.id)
         .order('created_at', { ascending: false })
         .limit(200)
     if (error) throw tradeError(error, 'Could not load your service jobs')
@@ -267,10 +305,7 @@ export async function postServiceJob(input: {
 }
 
 export async function cancelServiceJob(jobId: string, reason?: string): Promise<void> {
-    const { error } = await supabase.rpc('cancel_service_job', {
-        _job_id: jobId,
-        ...(reason ? { _reason: reason } : {}),
-    })
+    const { error } = await supabase.rpc('cancel_service_job', { _job_id: jobId, ...(reason ? { _reason: reason } : {}) })
     if (error) throw tradeError(error, 'Could not cancel service job')
 }
 
@@ -292,6 +327,11 @@ export async function getServiceJobContact(jobId: string): Promise<ServiceJobCon
     return Array.isArray(data) ? (data[0] ?? null) : null
 }
 
+export async function updateServiceJobProgress(jobId: string, action: 'start' | 'provider_complete' | 'customer_confirm'): Promise<void> {
+    const { error } = await supabase.rpc('tradexchange_update_job_progress', { p_job_id: jobId, p_action: action })
+    if (error) throw tradeError(error, 'Could not update service job progress')
+}
+
 export async function confirmServiceJobCompletion(jobId: string): Promise<string> {
     const { data, error } = await supabase.rpc('confirm_service_job_completion', { _job_id: jobId })
     if (error) throw tradeError(error, 'Could not confirm completion')
@@ -299,12 +339,19 @@ export async function confirmServiceJobCompletion(jobId: string): Promise<string
 }
 
 export async function reportServiceJobIssue(jobId: string, kind: 'no_show' | 'failed' | 'disputed', detail?: string): Promise<void> {
-    const { error } = await supabase.rpc('report_service_job_issue', {
-        _job_id: jobId,
-        _kind: kind,
-        ...(detail ? { _detail: detail } : {}),
-    })
+    const { error } = await supabase.rpc('report_service_job_issue', { _job_id: jobId, _kind: kind, ...(detail ? { _detail: detail } : {}) })
     if (error) throw tradeError(error, 'Could not report this service issue')
+}
+
+export async function getProviderLeadFeed(type: LeadServiceCategory): Promise<ProviderLeadRow[]> {
+    const { data, error } = await supabase.rpc('provider_lead_feed', { _type: type })
+    if (error) throw tradeError(error, `Could not load ${type} enquiries`)
+    return (data ?? []) as ProviderLeadRow[]
+}
+
+export async function updateProviderLeadStatus(recipientId: string, status: 'new' | 'contacted' | 'in_progress' | 'closed'): Promise<void> {
+    const { error } = await supabase.rpc('tradexchange_update_lead_status', { p_recipient_id: recipientId, p_status: status })
+    if (error) throw tradeError(error, 'Could not update enquiry status')
 }
 
 export async function submitTradeLead(input: {
