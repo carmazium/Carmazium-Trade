@@ -35,7 +35,20 @@ jobs:
         run: npm ci
 
       - name: Frontend lint
-        run: npm run lint
+        shell: bash
+        run: |
+          set +e
+          npm run lint 2>&1 | tee frontend-lint.txt
+          lint_status=${PIPESTATUS[0]}
+          if [ "$lint_status" -ne 0 ]; then
+            git config user.name "carmazium-audit-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add frontend-lint.txt
+            git commit -m "audit: capture frontend lint diagnostics"
+            git push origin HEAD:release-audit-source-2026-09-11
+            exit "$lint_status"
+          fi
+          rm -f frontend-lint.txt
 
       - name: Frontend production build
         env:
