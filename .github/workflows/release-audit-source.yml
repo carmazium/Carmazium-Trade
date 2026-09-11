@@ -51,7 +51,8 @@ jobs:
 
       - name: Backend lint
         working-directory: backend
-        run: npx eslint "src/**/*.ts" "test/**/*.ts" --no-error-on-unmatched-pattern --rule 'prettier/prettier: warn'
+        run: |
+          npx eslint "src/**/*.ts" "test/**/*.ts" --no-error-on-unmatched-pattern --rule 'prettier/prettier: warn'
 
       - name: Backend production build
         working-directory: backend
