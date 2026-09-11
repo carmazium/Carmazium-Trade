@@ -1,0 +1,63 @@
+name: Dependency audit 90-95
+
+on:
+  push:
+    branches:
+      - final/carmazium-completion
+    paths:
+      - .github/workflows/dependency-audit-90-95.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out completion branch
+        uses: actions/checkout@v4
+        with:
+          ref: final/carmazium-completion
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+
+      - name: Audit frontend production dependencies
+        shell: bash
+        run: |
+          npm ci
+          npm audit --omit=dev --json > audit-frontend.json || true
+
+      - name: Audit backend production dependencies
+        working-directory: backend
+        shell: bash
+        run: |
+          npm ci
+          npm audit --omit=dev --json > ../audit-backend.json || true
+
+      - name: Summarize audit severity
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          for (const [label, path] of [['frontend','audit-frontend.json'],['backend','audit-backend.json']]) {
+            const data = JSON.parse(fs.readFileSync(path, 'utf8'));
+            const v = data.metadata?.vulnerabilities || {};
+            console.log(`${label}: critical=${v.critical||0} high=${v.high||0} moderate=${v.moderate||0} low=${v.low||0} total=${v.total||0}`);
+          }
+          NODE
+
+      - name: Upload audit reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-reports
+          path: |
+            audit-frontend.json
+            audit-backend.json
+          retention-days: 1
