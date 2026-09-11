@@ -4,123 +4,159 @@ import {
     Injectable,
     NestInterceptor,
 } from '@nestjs/common';
-import { Observable, from } from 'rxjs';
+import { Observable } from 'rxjs';
 import { mergeMap } from 'rxjs/operators';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
- * Final privacy boundary for GET /listings/:slug.
+ * Canonical privacy boundary for GET /listings/:slug.
  *
- * Rules:
- * - Retail/classified contact details are public by design — no login wall.
- * - Auction seller contact remains private here; the winner-gated auction
- *   endpoint reveals it only after the £125 buyer fee is paid.
- * - Offer data is never public. An authenticated buyer may see only their own
- *   offer embedded in the listing response; everyone else receives none.
+ * - CLASSIFIED contact details are public by design.
+ * - A retail seller sees the latest incoming offer; a signed-in buyer sees only
+ *   their own latest offer; guests see no offer state.
+ * - AUCTION seller contact is always redacted here. The dedicated auction
+ *   endpoint reveals it only to the winner after the £125 buyer fee is paid.
  */
 @Injectable()
 export class ListingPrivacyInterceptor implements NestInterceptor {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(private readonly prisma: PrismaService) { }
 
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
         const req = context.switchToHttp().getRequest<any>();
+        if (req?.method !== 'GET') return next.handle();
+
         return next.handle().pipe(
-            mergeMap((response: any) => from(this.sanitize(response, req))),
-        );
-    }
+            mergeMap(async (response: any) => {
+                const path = String(req.originalUrl || req.url || '').split('?')[0];
+                if (!/^\/listings\/[^/]+$/.test(path)) return response;
 
-    private async sanitize(response: any, req: any) {
-        if (req?.method !== 'GET') return response;
+                const staticListingRoutes = new Set([
+                    'featured', 'my', 'stats', 'performance', 'earnings',
+                ]);
+                const routePart = decodeURIComponent(path.slice('/listings/'.length));
+                if (staticListingRoutes.has(routePart)) return response;
 
-        // APP_INTERCEPTOR is global even though it is registered from
-        // ListingsModule. Scope the mutation to the one public detail route;
-        // admin endpoints and dashboard endpoints must retain their full data.
-        const path = String(req.originalUrl || req.url || '').split('?')[0];
-        if (!/^\/listings\/[^/]+$/.test(path)) return response;
+                const listing = response?.data;
+                if (
+                    !listing ||
+                    Array.isArray(listing) ||
+                    !listing.id ||
+                    !listing.type ||
+                    !listing.seller
+                ) {
+                    return response;
+                }
 
-        const staticListingRoutes = new Set([
-            'featured', 'my', 'stats', 'performance', 'earnings',
-        ]);
-        const routePart = decodeURIComponent(path.slice('/listings/'.length));
-        if (staticListingRoutes.has(routePart)) return response;
+                const viewerId: string | undefined = req.user?.id;
+                const sellerId: string | null = listing.sellerId ?? listing.seller?.id ?? null;
+                const seller: any = { ...listing.seller };
+                const result: any = { ...listing, seller };
 
-        const listing = response?.data;
-        if (!listing || Array.isArray(listing) || !listing.id || !listing.slug || !listing.type || !listing.seller) {
-            return response;
-        }
+                if (listing.type === 'AUCTION') {
+                    seller.phoneAvailable = Boolean(seller.phoneAvailable || seller.phone);
+                    seller.phone = null;
+                    if ('email' in seller) {
+                        seller.emailAvailable = Boolean(seller.emailAvailable || seller.email);
+                        seller.email = null;
+                    }
 
-        const viewerId: string | undefined = req.user?.id;
+                    if (seller.dealerProfile) {
+                        const dealer = seller.dealerProfile;
+                        seller.dealerProfile = {
+                            companyName: dealer.companyName,
+                            logo: dealer.logo ?? null,
+                            description: dealer.description ?? null,
+                            isVerified: Boolean(dealer.isVerified),
+                            openingHours: dealer.openingHours ?? null,
+                            phone: null,
+                            phoneAvailable: Boolean(dealer.phoneAvailable || dealer.phone),
+                            website: null,
+                            websiteAvailable: Boolean(dealer.websiteAvailable || dealer.website),
+                            businessAddress: null,
+                            businessAddressAvailable: Boolean(
+                                dealer.businessAddressAvailable || dealer.businessAddress,
+                            ),
+                        };
+                    }
 
-        if (Array.isArray(listing.offers)) {
-            listing.offers = viewerId
-                ? listing.offers.filter((offer: any) => offer?.buyerId === viewerId)
-                : [];
-        }
+                    result.offers = [];
+                    return { ...response, data: result };
+                }
 
-        if (listing.type === 'AUCTION') {
-            listing.seller = {
-                ...listing.seller,
-                phone: null,
-                email: null,
-                phoneAvailable: !!listing.seller.phone || !!listing.seller.phoneAvailable,
-                ...(listing.seller.dealerProfile ? {
-                    dealerProfile: {
-                        ...listing.seller.dealerProfile,
-                        phone: null,
-                        businessAddress: null,
-                        website: null,
-                        phoneAvailable: !!listing.seller.dealerProfile.phone || !!listing.seller.dealerProfile.phoneAvailable,
-                    },
-                } : {}),
-            };
-            return response;
-        }
+                if (listing.type !== 'CLASSIFIED' || !sellerId) {
+                    result.offers = [];
+                    return { ...response, data: result };
+                }
 
-        if (listing.type !== 'CLASSIFIED' || !listing.sellerId) return response;
+                // Offer state is private to the seller and each individual buyer.
+                if (viewerId === sellerId) {
+                    result.offers = Array.isArray(listing.offers) ? listing.offers.slice(0, 1) : [];
+                } else if (viewerId) {
+                    const ownOffer = await this.prisma.offer.findFirst({
+                        where: { listingId: listing.id, buyerId: viewerId },
+                        orderBy: { createdAt: 'desc' },
+                        select: {
+                            id: true,
+                            amount: true,
+                            status: true,
+                            message: true,
+                            buyerId: true,
+                            createdAt: true,
+                        },
+                    });
+                    result.offers = ownOffer ? [ownOffer] : [];
+                } else {
+                    result.offers = [];
+                }
 
-        // Admin-created stock is branded as CarMazium elsewhere. Never expose a
-        // staff member's private account details as the seller contact.
-        if (listing.seller?.role === 'ADMIN') {
-            listing.seller = {
-                ...listing.seller,
-                email: process.env.PUBLIC_SUPPORT_EMAIL || 'support@carmazium.com',
-            };
-            return response;
-        }
+                // Never expose a staff/admin account as the public retail seller.
+                if (seller.role === 'ADMIN') {
+                    seller.phone = null;
+                    seller.phoneAvailable = false;
+                    seller.email = process.env.PUBLIC_SUPPORT_EMAIL || 'support@carmazium.com';
+                    seller.dealerProfile = null;
+                    return { ...response, data: result };
+                }
 
-        const contact = await this.prisma.user.findUnique({
-            where: { id: listing.sellerId },
-            select: {
-                phone: true,
-                email: true,
-                dealerProfile: {
+                // Retail contact is intentionally public. Re-read only public contact
+                // and dealership fields so dealerProfile cannot leak private columns.
+                const publicContact = await this.prisma.user.findUnique({
+                    where: { id: sellerId },
                     select: {
                         phone: true,
-                        businessAddress: true,
-                        website: true,
+                        email: true,
+                        dealerProfile: {
+                            select: {
+                                companyName: true,
+                                logo: true,
+                                description: true,
+                                phone: true,
+                                website: true,
+                                businessAddress: true,
+                                openingHours: true,
+                                isVerified: true,
+                            },
+                        },
                     },
-                },
-            },
-        });
+                });
 
-        if (!contact) return response;
+                seller.phone = publicContact?.phone ?? null;
+                seller.email = publicContact?.email ?? null;
+                seller.phoneAvailable = Boolean(publicContact?.phone);
 
-        listing.seller = {
-            ...listing.seller,
-            phone: contact.phone,
-            email: contact.email,
-            phoneAvailable: !!contact.phone,
-            ...(listing.seller.dealerProfile ? {
-                dealerProfile: {
-                    ...listing.seller.dealerProfile,
-                    phone: contact.dealerProfile?.phone ?? listing.seller.dealerProfile.phone ?? null,
-                    businessAddress: contact.dealerProfile?.businessAddress ?? listing.seller.dealerProfile.businessAddress ?? null,
-                    website: contact.dealerProfile?.website ?? listing.seller.dealerProfile.website ?? null,
-                    phoneAvailable: !!(contact.dealerProfile?.phone ?? listing.seller.dealerProfile.phone),
-                },
-            } : {}),
-        };
+                if (publicContact?.dealerProfile) {
+                    seller.dealerProfile = {
+                        ...publicContact.dealerProfile,
+                        phoneAvailable: Boolean(publicContact.dealerProfile.phone),
+                        websiteAvailable: Boolean(publicContact.dealerProfile.website),
+                        businessAddressAvailable: Boolean(publicContact.dealerProfile.businessAddress),
+                    };
+                } else {
+                    seller.dealerProfile = null;
+                }
 
-        return response;
+                return { ...response, data: result };
+            }),
+        );
     }
 }
