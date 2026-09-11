@@ -38,7 +38,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          npm run lint 2>&1 | tee frontend-lint.txt
+          npx eslint src 2>&1 | tee frontend-lint.txt
           lint_status=${PIPESTATUS[0]}
           if [ "$lint_status" -ne 0 ]; then
             git config user.name "carmazium-audit-bot"
