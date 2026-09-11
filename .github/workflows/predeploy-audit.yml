@@ -1,0 +1,107 @@
+name: CarMazium pre-deployment audit
+
+on:
+  push:
+    branches:
+      - audit/predeploy-100
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Clean install
+        run: npm ci
+      - name: ESLint
+        run: npm run lint
+      - name: Production dependency audit
+        run: |
+          npm audit --omit=dev --json > frontend-audit.json || true
+          node - <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('frontend-audit.json','utf8'));
+          const v = data.metadata?.vulnerabilities || {};
+          console.log('Frontend production vulnerabilities:', v);
+          if ((v.high || 0) > 0 || (v.critical || 0) > 0) process.exit(1);
+          NODE
+      - name: Next production build
+        run: npm run build
+
+  backend:
+    runs-on: ubuntu-24.04
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium_audit
+      DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/carmazium_audit
+      NODE_ENV: test
+      SESSION_SECRET: audit-only-session-secret-not-for-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Clean install
+        working-directory: backend
+        run: npm ci
+      - name: Prisma schema validation
+        working-directory: backend
+        run: npx prisma validate
+      - name: ESLint without mutation
+        working-directory: backend
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
+      - name: Full backend unit suite
+        working-directory: backend
+        run: npm test -- --runInBand
+      - name: Production dependency audit
+        working-directory: backend
+        run: |
+          npm audit --omit=dev --json > backend-audit.json || true
+          node - <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('backend-audit.json','utf8'));
+          const v = data.metadata?.vulnerabilities || {};
+          console.log('Backend production vulnerabilities:', v);
+          if ((v.high || 0) > 0 || (v.critical || 0) > 0) process.exit(1);
+          NODE
+      - name: Nest production build
+        working-directory: backend
+        run: npm run build
+
+  source-safety:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect committed credential material
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -n -I -E '(sk_(live|test)_[A-Za-z0-9]{16,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{20,})' -- . ':(exclude)package-lock.json' ':(exclude)backend/package-lock.json'; then
+            echo '::error::Potential credential material found in tracked source.'
+            exit 1
+          fi
+          echo 'No obvious committed credential patterns found.'
+      - name: Report destructive database commands
+        shell: bash
+        run: |
+          echo 'Reviewing destructive Prisma commands:'
+          git grep -n -E 'prisma (db push|migrate reset)|accept-data-loss' -- . || true
+      - name: Report legacy vehicle-fund payment references
+        shell: bash
+        run: |
+          echo 'Reviewing legacy vehicle-payment references:'
+          git grep -n -E 'DEPOSIT|FULL_PAYMENT' -- src backend/src || true
+      - name: Report TODO/FIXME/HACK markers
+        shell: bash
+        run: |
+          count=$(git grep -n -E 'TODO|FIXME|HACK' -- src backend/src | wc -l || true)
+          echo "TODO/FIXME/HACK markers: $count"
+          git grep -n -E 'TODO|FIXME|HACK' -- src backend/src || true
