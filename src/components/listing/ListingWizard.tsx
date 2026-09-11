@@ -415,6 +415,8 @@ export function ListingWizard({ isDashboard = false }: { isDashboard?: boolean }
                     deliveryPricePerMile: l.deliveryPricePerMile ? String(l.deliveryPricePerMile) : '',
                     deliveryMaxMiles: l.deliveryMaxMiles ? String(l.deliveryMaxMiles) : '',
                 }))
+                if (l.hpiReport?.status) setIsHpiUnlocked(true)
+
                 // Jump straight to step 1 (already pre-filled)
                 setSellingMethod('list')
                 setCurrentStep(1)
@@ -1134,7 +1136,11 @@ export function ListingWizard({ isDashboard = false }: { isDashboard?: boolean }
                              setIsProcessingPayment(true)
                              try {
                                  // Need a listing ID for HPI checkout — create a draft first if we don't have one
-                                 let listingId = draftListingId
+                                 let listingId = draftListingId || editId
+                                 if (editId && !draftListingId) {
+                                     setDraftListingId(editId)
+                                     localStorage.setItem('carmazium_hpi_draft_id', editId)
+                                 }
                                  if (!listingId) {
                                      const draft = await createListing({
                                          title: formData.title || `${formData.make || ''} ${formData.model || ''} ${formData.year || ''}`.trim() || formData.vrm,

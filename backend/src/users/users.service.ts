@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '@prisma/client';
+import { isSelfServiceRole } from '../auth/self-service-role';
 import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcrypt';
 
@@ -146,22 +147,10 @@ export class UsersService {
         return safeUser;
     }
 
-    /**
-     * Self-service roles are safe account modes only. Privileged roles remain
-     * absent from the allowlist. CONTRACTOR still requires an admin-approved
-     * capability and completed Stripe Connect before any paid work is possible.
-     */
-    private static readonly SELF_SERVICE_ROLES: readonly UserRole[] = [
-        UserRole.BUYER,
-        UserRole.SELLER,
-        UserRole.DEALER,
-        UserRole.CONTRACTOR,
-    ];
-
     async requestRoleElevation(userId: string, newRole: UserRole) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new NotFoundException('User not found');
-        if (!UsersService.SELF_SERVICE_ROLES.includes(newRole)) {
+        if (!isSelfServiceRole(newRole)) {
             this.logger.warn(`Blocked self-service role escalation: user ${userId} (${user.role}) requested ${newRole}`);
             throw new ForbiddenException('That account type has to be set up by our team. Contact support to request it.');
         }
@@ -209,30 +198,35 @@ export class UsersService {
     }
 
     async syncUser(data: {
-        id?: string;
-        supabaseAuthId?: string;
+        id: string;
         email: string;
         firstName?: string;
         lastName?: string;
-        role?: UserRole;
+        role?: unknown;
     }) {
         const email = data.email.toLowerCase().trim();
-        const userId = data.id ?? data.supabaseAuthId;
-        const role = data.role && Object.values(UserRole).includes(data.role) ? data.role : undefined;
+        const requestedRole = isSelfServiceRole(data.role) ? data.role : undefined;
         const userExists = await this.prisma.user.findUnique({ where: { email } });
+
+        // Existing privileged accounts (ADMIN/partners) may never be demoted or
+        // altered by the public sync path. Existing self-service accounts may
+        // switch only among the same safe set. New accounts default to BUYER.
+        const mayUpdateRole = !!requestedRole && (!userExists || isSelfServiceRole(userExists.role));
+        const createRole = requestedRole ?? UserRole.BUYER;
+
         const user = await this.prisma.user.upsert({
             where: { email },
             update: {
                 ...(data.firstName && { firstName: data.firstName }),
                 ...(data.lastName && { lastName: data.lastName }),
-                ...(role !== undefined && { role }),
+                ...(mayUpdateRole && { role: requestedRole }),
             },
             create: {
-                ...(userId && { id: userId }),
+                id: data.id,
                 email,
                 firstName: data.firstName,
                 lastName: data.lastName,
-                ...(role !== undefined && { role }),
+                role: createRole,
                 passwordHash: 'SUPABASE_EXTERNAL_AUTH',
             },
         });

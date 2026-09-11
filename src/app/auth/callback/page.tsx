@@ -226,13 +226,17 @@ function AuthCallbackContent() {
       const syncTimeout = setTimeout(() => syncController.abort(), 15000)
       fetch(`${apiBase}/users/sync`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
-          id: user.id,
-          email: user.email,
           firstName: resolvedFirstName,
           lastName: resolvedLastName,
-          role: meta.role || roleOverride,
+          // This is only a requested self-service account mode. The backend
+          // clamps it to BUYER/SELLER/DEALER/CONTRACTOR and never accepts a
+          // privileged role from client metadata.
+          role: roleOverride || meta.role,
         }),
         signal: syncController.signal,
       }).then(async (res) => {

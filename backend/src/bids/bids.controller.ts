@@ -31,10 +31,10 @@ export class BidsController {
     constructor(private readonly bidsService: BidsService) { }
 
     @Post()
-    @UseGuards(SessionAuthGuard)
+    @UseGuards(SessionAuthGuard, VerifiedDealerGuard)
     @ApiCookieAuth()
     @HttpCode(HttpStatus.CREATED)
-    @ApiOperation({ summary: 'Place a bid on an auction listing' })
+    @ApiOperation({ summary: 'Place a bid on an auction listing (verified dealers only)' })
     @ApiResponse({ status: 201, description: 'Bid placed successfully' })
     @ApiResponse({ status: 400, description: 'Invalid bid or listing not an auction' })
     @ApiResponse({ status: 401, description: 'Unauthorized' })

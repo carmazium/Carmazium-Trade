@@ -213,7 +213,7 @@ export class AuctionsController {
     // ── Buy It Now Routes ────────────────────────────────────────────────────
 
     @Post(':id/bin-trigger')
-    @UseGuards(SessionAuthGuard)
+    @UseGuards(SessionAuthGuard, VerifiedDealerGuard)
     @ApiCookieAuth()
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Buyer triggers a Buy It Now request — enters BIN pending state (seller has 24h to respond)' })

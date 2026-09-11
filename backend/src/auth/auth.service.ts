@@ -3,12 +3,14 @@ import {
     ConflictException,
     UnauthorizedException,
     Logger,
+    ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UserRole } from '@prisma/client';
+import { isSelfServiceRole } from './self-service-role';
 import * as bcrypt from 'bcrypt';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
@@ -90,6 +92,14 @@ export class AuthService {
         // Hash the password
         const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
+        // Never accept privileged roles from a public registration payload. DTO
+        // validation is the first gate; this service-level check prevents a future
+        // controller or internal caller from bypassing that boundary.
+        const requestedRole = dto.role ?? UserRole.BUYER;
+        if (!isSelfServiceRole(requestedRole)) {
+            throw new ForbiddenException('That account type cannot be self-registered.');
+        }
+
         // Create the user
         const user = await this.prisma.user.create({
             data: {
@@ -98,7 +108,7 @@ export class AuthService {
                 firstName: dto.firstName,
                 lastName: dto.lastName,
                 phone: dto.phone,
-                role: dto.role || UserRole.BUYER,
+                role: requestedRole,
             },
         });
 
@@ -119,7 +129,7 @@ export class AuthService {
             where: { email: dto.email.toLowerCase().trim() },
         });
 
-        if (!user || !user.passwordHash) {
+        if (!user || user.deletedAt || !user.passwordHash) {
             throw new UnauthorizedException('Invalid email or password');
         }
 
@@ -223,6 +233,27 @@ export class AuthService {
     }
 
     /**
+     * Verify the Supabase token itself and return only the trusted identity.
+     * This intentionally does not create/update a local user and never reads a
+     * role from user_metadata. It is used by /users/sync so the client cannot
+     * spoof another UUID/email or elevate itself through editable metadata.
+     */
+    async getVerifiedSupabaseIdentity(token: string): Promise<{ id: string; email: string } | null> {
+        if (!token?.trim()) return null;
+        try {
+            const { data, error } = await this.supabase.auth.getUser(token);
+            if (error || !data.user?.email) return null;
+            return {
+                id: data.user.id,
+                email: data.user.email.toLowerCase().trim(),
+            };
+        } catch (err: any) {
+            this.logger.warn(`Supabase identity verification failed: ${err?.message || err}`);
+            return null;
+        }
+    }
+
+    /**
      * Verify a Supabase access token and return the local DB user.
      * Used by the auth bridge to create backend sessions from Supabase JWTs.
      */
@@ -300,14 +331,10 @@ export class AuthService {
             if (!localUser) {
                 try {
                     const meta = (data.user.user_metadata || {}) as Record<string, string>;
-                    // Only treat role as explicitly set when it's actually in Supabase metadata.
-                    // For OAuth providers (Google, etc.) meta.role is undefined — we must NOT
-                    // overwrite a role that /users/sync already set correctly (e.g. DEALER).
-                    const metaRole =
-                        meta?.role && Object.values(UserRole).includes(meta.role as UserRole)
-                            ? (meta.role as UserRole)
-                            : undefined;
-                    const createRole = metaRole ?? UserRole.BUYER;
+                    // user_metadata is user-editable in Supabase and therefore can
+                    // never grant a CarMazium role. Names are presentation/profile
+                    // fields and are safe to hydrate; authorization stays in our DB.
+                    const createRole = UserRole.BUYER;
                     // Resolve name across our signup metadata AND Google/Apple OAuth keys
                     const fullNameFallback = (meta.full_name || meta.name || '').trim();
                     const resolvedFirst =
@@ -322,11 +349,10 @@ export class AuthService {
                                 // NEVER update `id` — overwriting the PK would orphan all
                                 // existing listings, sales, and offers for this user.
                                 // Only overwrite name if we have a value (don't blank out existing names).
-                                // Only overwrite role if explicitly present in Supabase metadata —
-                                // avoids stomping over a role set by /users/sync for OAuth users.
+                                // Role is deliberately absent: editable Supabase metadata
+                                // is never an authorization source.
                                 ...(resolvedFirst && { firstName: resolvedFirst }),
                                 ...(resolvedLast && { lastName: resolvedLast }),
-                                ...(metaRole && { role: metaRole }),
                             },
                             create: {
                                 id: data.user.id,

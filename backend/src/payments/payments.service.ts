@@ -266,6 +266,15 @@ export class PaymentsService {
         if (actor?.role === 'ADMIN') {
             throw new BadRequestException('Admin listings are free — no listing fee is charged. Submit the listing directly.');
         }
+        const listing = await this.prisma.listing.findUnique({
+            where: { id: listingId },
+            select: { sellerId: true, type: true, deletedAt: true, hpiReport: { select: { id: true } } },
+        });
+        if (!listing || listing.deletedAt) throw new NotFoundException('Listing not found');
+        if (listing.sellerId !== userId) throw new ForbiddenException('You do not own this listing.');
+        if (listing.type !== 'CLASSIFIED') throw new BadRequestException('Auction listings are free and do not use retail listing checkout.');
+        if (!listing.hpiReport) throw new BadRequestException('A fresh HPI/history report is required before paying the Retail Listing fee.');
+
         const stripe = await this.getStripe();
         const baseUrl = resolveFrontendUrl(this.config.get<string>('FRONTEND_URL'));
         const amount = this.LISTING_FEES[badgeTier];

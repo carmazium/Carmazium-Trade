@@ -959,6 +959,127 @@ export class AdminService {
         return updated;
     }
 
+    /**
+     * Explicit admin action for a genuinely failed/cancelled auction sale.
+     * This is intentionally separate from denyHandover(): unclear evidence is
+     * resubmitted and never triggers a buyer refund.
+     */
+    async refundFailedAuctionSale(auctionId: string, reason: string) {
+        const cleanedReason = reason?.trim();
+        if (!cleanedReason || cleanedReason.length < 5) {
+            throw new BadRequestException('A clear failed-sale reason is required.');
+        }
+
+        const auction = await this.prisma.auction.findUnique({
+            where: { id: auctionId },
+            include: {
+                listing: { select: { id: true, title: true, sellerId: true, linkedListingId: true } },
+                winner: { select: { id: true, email: true, firstName: true } },
+            },
+        });
+        if (!auction) throw new NotFoundException('Auction not found');
+        if (auction.status !== 'ENDED' || !auction.winnerId) {
+            throw new BadRequestException('Only an ended auction with a confirmed winner can be cancelled as a failed sale.');
+        }
+        if (!auction.buyerFeePaid || !auction.buyerFeeTransactionId) {
+            throw new BadRequestException('No paid £125 auction buyer fee exists to partially refund.');
+        }
+        if (auction.sellerBonusReleased || auction.stripePayoutTransferId || auction.manualPayoutConfirmedAt) {
+            throw new BadRequestException('This sale cannot be cancelled after the seller bonus has been released or paid.');
+        }
+
+        const formerWinnerId = auction.winnerId;
+        const sellerId = auction.listing.sellerId;
+
+        // Stripe first: the payment method is idempotent and refunds exactly
+        // £100, retaining the £25 platform fee. Only mutate sale state after it succeeds.
+        await this.paymentsService.issueRefundForAuction(auctionId, 'FAILED_SALE');
+
+        await this.prisma.$transaction(async (tx) => {
+            await tx.auction.update({
+                where: { id: auctionId },
+                data: {
+                    status: 'CANCELLED',
+                    winnerId: null,
+                    winningBidAmount: null,
+                    wonAt: null,
+                    buyerFeePaid: false,
+                    buyerFeeTransactionId: null,
+                    handoverProofUrl: null,
+                    handoverSubmittedAt: null,
+                },
+            });
+            await tx.listing.update({
+                where: { id: auction.listing.id },
+                data: { status: 'DRAFT', type: 'AUCTION' },
+            });
+            await tx.sale.deleteMany({
+                where: { listingId: auction.listing.id, buyerId: formerWinnerId },
+            });
+            if (sellerId) {
+                await tx.sellerProfile.updateMany({
+                    where: { userId: sellerId, totalSales: { gt: 0 } },
+                    data: { totalSales: { decrement: 1 } },
+                });
+            }
+            // A separate linked Retail Listing was auto-closed when the Auction
+            // was won. The vehicle never actually sold, so restore that same
+            // listing rather than creating a new retail relist. It keeps its own
+            // HPI relation; the Auction listing keeps the auction HPI.
+            if (auction.listing.linkedListingId) {
+                await tx.listing.updateMany({
+                    where: { id: auction.listing.linkedListingId, deletedAt: null, status: 'SOLD', type: 'CLASSIFIED' },
+                    data: { status: 'ACTIVE' },
+                });
+            }
+        });
+
+        await this.notificationsService.create({
+            userId: formerWinnerId,
+            type: 'SYSTEM',
+            title: 'Auction sale cancelled — £100 refunded',
+            message: `The sale for "${auction.listing.title}" was cancelled. £100 of your £125 auction buyer fee has been refunded; the £25 platform fee is retained under the auction terms.`,
+            entityType: 'AUCTION',
+            entityId: auctionId,
+            link: '/dashboard/dealer/auctions/won',
+            data: { failedSaleReason: cleanedReason },
+        }).catch(() => {});
+
+        if (sellerId) {
+            await this.notificationsService.create({
+                userId: sellerId,
+                type: 'SYSTEM',
+                title: 'Auction sale cancelled — ready to relist',
+                message: `The failed sale for "${auction.listing.title}" was cancelled. The Auction listing is back in draft with its existing HPI retained; update the current vehicle notes before relisting.`,
+                entityType: 'AUCTION',
+                entityId: auctionId,
+                link: '/dashboard/seller/auctions',
+                data: { failedSaleReason: cleanedReason },
+            }).catch(() => {});
+        }
+
+        const refund = await this.prisma.transaction.findFirst({
+            where: {
+                listingId: auction.listing.id,
+                userId: formerWinnerId,
+                type: 'REFUND',
+                status: 'COMPLETED',
+            },
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, amount: true, stripePaymentId: true, createdAt: true },
+        });
+
+        return {
+            auctionId,
+            reason: cleanedReason,
+            status: 'CANCELLED' as const,
+            listingStatus: 'DRAFT' as const,
+            refundedAmount: 100,
+            nonRefundableAmount: 25,
+            refund,
+        };
+    }
+
     async getAllTransactions(page = 1, limit = 20) {
         const skip = (page - 1) * limit;
         const [data, total] = await Promise.all([

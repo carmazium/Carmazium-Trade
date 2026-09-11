@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import * as React from "react"
 import Link from "next/link"
@@ -24,7 +24,7 @@ import {
 } from "@/lib/auctionApi"
 import { apiClient } from "@/lib/apiClient"
 import { uploadImage } from "@/lib/supabase"
-import { getStripeConnectStatus, alsoListRetail, createListingCheckout, type StripeConnectStatus, type Listing } from "@/lib/listingApi"
+import { getStripeConnectStatus, alsoListRetail, type StripeConnectStatus, type Listing } from "@/lib/listingApi"
 
 const STATUS_STYLES: Record<string, string> = {
     SCHEDULED: "bg-blue-500/10 text-blue-400 border-blue-500/20",
@@ -204,14 +204,14 @@ function SellerAuctionsPage() {
             // the listing's own ID is what proves this DRAFT is a reverted
             // auction rather than an ordinary unfinished/unpaid draft, which
             // must stay excluded.
-            const endedAuctionListingIds = new Set(
+            const relistableAuctionListingIds = new Set(
                 (freshAuctions ?? [])
-                    .filter(a => a.status === "ENDED")
+                    .filter(a => a.status === "ENDED" || a.status === "CANCELLED")
                     .map(a => a.listingId)
             )
             setEligibleListings(
                 listed.filter(l =>
-                    (l.status === "ACTIVE" || (l.status === "DRAFT" && endedAuctionListingIds.has(l.id))) &&
+                    (l.status === "ACTIVE" || (l.status === "DRAFT" && relistableAuctionListingIds.has(l.id))) &&
                     !auctionListingIds.has(l.id) &&
                     !(l as any).linkedListingId
                 )
@@ -294,8 +294,9 @@ function SellerAuctionsPage() {
         setAlsoRetailError(null)
         try {
             const { linkedListingId } = await alsoListRetail(alsoRetailAuction.listingId, parseFloat(alsoRetailPrice), alsoRetailTier)
-            const { url } = await createListingCheckout(linkedListingId, alsoRetailTier)
-            window.location.href = url
+            // Retail is a distinct listing and must have a fresh HPI. The normal
+            // edit wizard handles that mandatory request before the £1/upgrade fee.
+            window.location.href = `/sell?editId=${encodeURIComponent(linkedListingId)}`
         } catch (err: any) {
             setAlsoRetailError(err.message ?? 'Failed to create retail listing')
         } finally {
@@ -734,14 +735,15 @@ function SellerAuctionsPage() {
                                             )}
                                             {(auction.status === "ACTIVE" || auction.status === "SCHEDULED") && (auction.listing as any).linkedListing?.status === 'DRAFT' && (
                                                 <button
-                                                    onClick={async () => {
+                                                    onClick={() => {
                                                         const linked = (auction.listing as any).linkedListing
-                                                        const { url } = await createListingCheckout(linked.id, linked.badgeTier || 'BASIC')
-                                                        window.location.href = url
+                                                        // A linked Retail Listing is a distinct listing and must
+                                                        // obtain its own fresh HPI before its listing fee can be paid.
+                                                        window.location.href = `/sell?editId=${encodeURIComponent(linked.id)}`
                                                     }}
                                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold hover:bg-amber-500/20 transition-colors"
                                                 >
-                                                    <Tag size={13} /> Resume Retail Payment
+                                                    <Tag size={13} /> Complete Retail Listing
                                                 </button>
                                             )}
                                             {(auction.status === "ACTIVE" || auction.status === "SCHEDULED") && (
@@ -912,14 +914,15 @@ function SellerAuctionsPage() {
                                                         )}
                                                         {(auction.status === "ACTIVE" || auction.status === "SCHEDULED") && (auction.listing as any).linkedListing?.status === 'DRAFT' && (
                                                             <button
-                                                                onClick={async () => {
+                                                                onClick={() => {
                                                                     const linked = (auction.listing as any).linkedListing
-                                                                    const { url } = await createListingCheckout(linked.id, linked.badgeTier || 'BASIC')
-                                                                    window.location.href = url
+                                                                    // This linked Retail Listing must complete its own fresh
+                                                                    // HPI/history request before any listing fee is collected.
+                                                                    window.location.href = `/sell?editId=${encodeURIComponent(linked.id)}`
                                                                 }}
                                                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold hover:bg-amber-500/20 transition-colors"
                                                             >
-                                                                <Tag size={13} /> Resume Retail Payment
+                                                                <Tag size={13} /> Complete Retail Listing
                                                             </button>
                                                         )}
                                                         {(auction.status === "ACTIVE" || auction.status === "SCHEDULED") && (

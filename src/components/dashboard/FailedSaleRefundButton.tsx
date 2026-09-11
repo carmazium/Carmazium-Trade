@@ -24,7 +24,7 @@ export function FailedSaleRefundButton({
         }
 
         const confirmed = window.confirm(
-            "Cancel this auction sale?\n\n£100 of the buyer's £125 auction fee will be refunded. The £25 platform fee remains non-refundable. The auction and linked listing will return to draft and the recorded sale will be reversed.\n\nThis action is only for a genuine failed/cancelled sale.",
+            "Cancel this auction sale?\n\n£100 of the buyer's £125 auction fee will be refunded. The £25 platform fee remains non-refundable. The auction will return to draft, any linked retail listing auto-closed by this auction will be restored, and the recorded auction sale will be reversed.\n\nThis action is only for a genuine failed/cancelled sale.",
         )
         if (!confirmed) return
 

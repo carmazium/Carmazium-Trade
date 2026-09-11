@@ -9,6 +9,7 @@ import {
     Res,
     UseGuards,
     BadRequestException,
+    UnauthorizedException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiTags, ApiOperation, ApiCookieAuth } from '@nestjs/swagger';
@@ -16,6 +17,7 @@ import { UsersService } from './users.service';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from '@prisma/client';
+import { AuthService } from '../auth/auth.service';
 import {
     StartAddressVerificationDto,
     ConfirmAddressVerificationDto,
@@ -24,7 +26,10 @@ import {
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
-    constructor(private readonly usersService: UsersService) { }
+    constructor(
+        private readonly usersService: UsersService,
+        private readonly authService: AuthService,
+    ) { }
 
     /**
      * Get current authenticated user's profile.
@@ -149,13 +154,22 @@ export class UsersController {
      * Sync endpoint for frontend onboarding.
      */
     @Post('sync')
-    @ApiOperation({ summary: 'Sync user from Supabase' })
-    async sync(@Body() body: any) {
-        if (!body.email) {
-            throw new BadRequestException('Email is required for sync');
-        }
+    @ApiOperation({ summary: 'Sync the authenticated Supabase identity into the local user database' })
+    async sync(@Body() body: any, @Req() req: Request) {
+        const authHeader = req.headers.authorization;
+        const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (!token) throw new UnauthorizedException('Supabase bearer token is required for sync');
 
-        const { user, isNewUser } = await this.usersService.syncUser(body);
+        const identity = await this.authService.getVerifiedSupabaseIdentity(token);
+        if (!identity) throw new UnauthorizedException('Invalid or expired Supabase token');
+
+        const { user, isNewUser } = await this.usersService.syncUser({
+            id: identity.id,
+            email: identity.email,
+            firstName: body?.firstName,
+            lastName: body?.lastName,
+            role: body?.role,
+        });
         return {
             success: true,
             data: user,
