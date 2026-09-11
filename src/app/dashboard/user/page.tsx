@@ -529,6 +529,8 @@ function InventoryTab({ onRefreshStats }: { onRefreshStats: () => void }) {
             const result = await publishListing(listing.id)
             if (result.activated) {
                 setListings(prev => prev.map(l => l.id === listing.id ? { ...l, status: 'ACTIVE' as const } : l))
+            } else if (result.pendingReview) {
+                setListings(prev => prev.map(l => l.id === listing.id ? { ...l, status: 'PENDING_REVIEW' as const } : l))
             } else if (result.requiresPayment) {
                 const checkout = await createListingCheckoutSession(listing.id, listing.badgeTier || 'BASIC')
                 window.location.href = checkout.url

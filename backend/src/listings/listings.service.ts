@@ -30,7 +30,7 @@ import { SellersService } from '../sellers/sellers.service';
 import { ScraperService } from '../scraper/scraper.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
-import { buildListingActivationData } from './listing-activation';
+import { HpiService } from '../hpi/hpi.service';
 import { brandAdminSeller, brandListingSeller } from './admin-seller-branding';
 
 // ─── Enum mappers ─────────────────────────────────────────────────────────────
@@ -99,7 +99,15 @@ export class ListingsService {
         private readonly scraper: ScraperService,
         private readonly notificationsService: NotificationsService,
         private readonly notificationsGateway: NotificationsGateway,
+        private readonly hpiService: HpiService,
     ) { }
+
+    /** Queue the mandatory vehicle-history/HPI review without making listing submission fragile. */
+    private queueMandatoryHpiReview(listingId: string, vrm?: string | null) {
+        this.hpiService.createPendingReport(listingId, vrm ?? '').catch(err => {
+            this.logger.error(`Failed to queue mandatory HPI review for listing ${listingId}: ${err?.message ?? err}`);
+        });
+    }
 
     /**
      * Notify a seller in-app + by email that their listing was submitted and is
@@ -350,6 +358,7 @@ export class ListingsService {
         // it's now awaiting admin review. Paid tiers get this from publishListing()
         // / the Stripe webhook once payment completes instead.
         if (listingStatus === 'PENDING_REVIEW') {
+            this.queueMandatoryHpiReview(listing.id, listing.vrm);
             this.notifySubmittedForReview({ id: listing.id, title: listing.title, sellerId: userId ?? listing.sellerId }).catch(() => { });
         }
 
@@ -575,9 +584,10 @@ export class ListingsService {
 
     /**
      * Find a single listing by slug (SEO-friendly) or ID.
-     * `viewerId` is only present when the caller is authenticated (via
-     * OptionalSessionAuthGuard) — used to gate the seller's phone number so
-     * anonymous visitors never receive it in the response payload.
+     * Retail/classified contact details are public by product design. Auction
+     * seller contact details are never exposed by this generic listing endpoint;
+     * the auction detail endpoint unlocks them only for the winning dealer after
+     * the £125 buyer fee has been paid.
      */
     async findBySlug(slugOrId: string, viewerId?: string): Promise<Listing> {
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(slugOrId);
@@ -644,7 +654,7 @@ export class ListingsService {
                     // `status` lets the buyer-facing page only show the "View
                     // Report" entry point once one has actually been requested
                     // — without it every listing showed the button regardless
-                    // of whether the seller ever paid for a report at all.
+                    // even when the mandatory report has not yet been completed.
                     select: { status: true, isClear: true, purchasedAt: true }
                 },
                 damageRecords: {
@@ -694,21 +704,22 @@ export class ListingsService {
             ? { ...listing.seller, listingCount: (listing.seller as any)._count?.listings ?? 0 }
             : listing.seller
 
-        // Gate contact phone numbers behind login — anonymous visitors get a
-        // `phoneAvailable` boolean instead of the real number so the frontend
-        // can render a "log in to view" blurred placeholder.
+        // Retail contact details are intentionally visible without login. For an
+        // AUCTION listing, this endpoint must not leak the seller's number even to
+        // an authenticated non-winner; AuctionsService owns the winner+fee gate.
         if (sellerWithCount) {
             const hasPersonalPhone = !!sellerWithCount.phone;
             const hasDealerPhone = !!sellerWithCount.dealerProfile?.phone;
+            const exposeRetailContact = listing.type === 'CLASSIFIED';
 
             sellerWithCount = {
                 ...sellerWithCount,
-                phone: viewerId ? sellerWithCount.phone : null,
+                phone: exposeRetailContact ? sellerWithCount.phone : null,
                 phoneAvailable: hasPersonalPhone,
                 ...(sellerWithCount.dealerProfile ? {
                     dealerProfile: {
                         ...sellerWithCount.dealerProfile,
-                        phone: viewerId ? sellerWithCount.dealerProfile.phone : null,
+                        phone: exposeRetailContact ? sellerWithCount.dealerProfile.phone : null,
                         phoneAvailable: hasDealerPhone,
                     },
                 } : {}),
@@ -769,10 +780,10 @@ export class ListingsService {
         if (updateListingDto.vrm) updateData.vrm = updateListingDto.vrm;
         if (updateListingDto.fuelType) updateData.fuelType = mapFuelType(updateListingDto.fuelType);
         if (updateListingDto.transmission) updateData.transmission = mapTransmission(updateListingDto.transmission);
-        if (updateListingDto.status) {
-            updateData.status = updateListingDto.status === 'ACTIVE' ? 'ACTIVE' :
-                updateListingDto.status === 'SOLD' ? 'SOLD' : 'DRAFT';
-        }
+        // Lifecycle status is intentionally ignored by the generic PATCH route.
+        // Publishing, rejection, withdrawal and sale transitions must use their
+        // dedicated endpoints so payment, mandatory HPI and admin-review gates
+        // cannot be bypassed with { status: 'ACTIVE' }.
         if (updateListingDto.listingType) {
             updateData.type = updateListingDto.listingType === 'AUCTION' ? 'AUCTION' : 'CLASSIFIED';
         }
@@ -841,11 +852,6 @@ export class ListingsService {
                 .catch(() => { /* silent */ });
         }
 
-        // Phase 2: If status changed to ACTIVE, increment seller's listing count
-        if (updateData.status === 'ACTIVE' && updatedListing.sellerId && listing.status !== 'ACTIVE') {
-            await this.sellersService.incrementListings(updatedListing.sellerId);
-        }
-
         return updatedListing;
     }
 
@@ -891,6 +897,23 @@ export class ListingsService {
             throw new BadRequestException(
                 'This listing has not been approved yet. Submit it for review from the listing editor instead.',
             );
+        }
+
+        // A previously published listing being relisted must re-enter review. Retail
+        // relists get a fresh vehicle-history/HPI cycle; auction relists may reuse
+        // their completed report, but still require admin approval before ACTIVE.
+        if (status === 'ACTIVE' && listing.status !== 'ACTIVE') {
+            if (listing.type === 'CLASSIFIED') {
+                await this.hpiService.resetForFreshListingReview(id, listing.vrm ?? '');
+            } else {
+                this.queueMandatoryHpiReview(id, listing.vrm);
+            }
+            const pending = await this.prisma.listing.update({
+                where: { id },
+                data: { status: 'PENDING_REVIEW', rejectionReason: null },
+            });
+            await this.notifySubmittedForReview(pending);
+            return pending;
         }
 
         // For SOLD transitions we wrap the listing update + Sale insert in a transaction
@@ -968,6 +991,7 @@ export class ListingsService {
 
         // Already submitted — nothing to do, still waiting on the admin
         if (listing.status === 'PENDING_REVIEW') {
+            this.queueMandatoryHpiReview(id, listing.vrm);
             return { activated: false, pendingReview: true };
         }
 
@@ -994,35 +1018,25 @@ export class ListingsService {
         });
         const isAdmin = actor?.role === 'ADMIN';
 
-        // Admin listings skip both the fee and the review queue — an admin
-        // approving their own listing is a formality, and the review pipeline
-        // exists to check other people's submissions.
-        //
-        // Uses the same activation shape as AdminService.approveListing rather
-        // than just setting status: 'ACTIVE', because going live also grants
-        // PREMIUM listings their 28-day featured window. Setting the status
-        // alone would publish an admin's PREMIUM listing without the placement
-        // that tier is supposed to buy.
-        //
-        // No approval email or notification is sent: those tell a seller that
-        // someone reviewed their listing, and here nobody did.
+        // Admin-created listings remain fee-free, but the mandatory HPI/history
+        // review applies to every listing. Admins therefore bypass Stripe only;
+        // they still enter PENDING_REVIEW and are activated through the same
+        // completed-HPI approval path as any other seller.
         if (isAdmin) {
             await this.prisma.listing.update({
                 where: { id },
-                data: buildListingActivationData(listing.badgeTier),
+                data: { status: 'PENDING_REVIEW', rejectionReason: null },
             });
-            if (listing.sellerId) {
-                await this.sellersService.incrementListings(listing.sellerId).catch(() => { });
-            }
-            this.logger.log(
-                `Listing ${id} published directly by admin ${userId} on the ${listing.badgeTier} tier — no fee, no review`,
-            );
-            return { activated: true };
+            this.queueMandatoryHpiReview(id, listing.vrm);
+            await this.notifySubmittedForReview(listing);
+            this.logger.log(`Listing ${id} submitted by admin ${userId} — fee skipped, mandatory HPI/admin approval retained`);
+            return { activated: false, pendingReview: true };
         }
 
         // FREE tier listings have no fee — submit for review directly
         if (listing.badgeTier === 'FREE') {
             await this.prisma.listing.update({ where: { id }, data: { status: 'PENDING_REVIEW', rejectionReason: null } });
+            this.queueMandatoryHpiReview(id, listing.vrm);
             await this.notifySubmittedForReview(listing);
             return { activated: false, pendingReview: true };
         }
@@ -1046,6 +1060,7 @@ export class ListingsService {
                 where: { id },
                 data: { status: 'PENDING_REVIEW', rejectionReason: null },
             });
+            this.queueMandatoryHpiReview(id, listing.vrm);
             await this.notifySubmittedForReview(listing);
             return { activated: false, pendingReview: true };
         }
@@ -1090,6 +1105,7 @@ export class ListingsService {
             where: { id },
             data: { status: 'PENDING_REVIEW', rejectionReason: null },
         });
+        this.queueMandatoryHpiReview(id, listing.vrm);
         await this.notifySubmittedForReview(listing);
 
         return { activated: false, pendingReview: true };
@@ -1257,7 +1273,9 @@ export class ListingsService {
 
     /**
      * Create a linked AUCTION listing alongside an existing CLASSIFIED retail listing.
-     * Copies all vehicle data; the auction listing is FREE and goes live immediately.
+     * Copies all vehicle data; the auction listing is FREE but still passes the
+     * mandatory HPI/admin review before the scheduled auction can activate.
+     * A completed source HPI may be reused for this auction copy.
      * Returns the new auction listing ID and the Auction record ID.
      */
     async alsoAuction(
@@ -1296,7 +1314,7 @@ export class ListingsService {
                 images: source.images,
                 videoUrls: source.videoUrls,
                 type: 'AUCTION',
-                status: 'ACTIVE',
+                status: 'PENDING_REVIEW',
                 description: source.description,
                 slug,
                 make: source.make, model: source.model, year: source.year, mileage: source.mileage,
@@ -1332,6 +1350,33 @@ export class ListingsService {
             } as any,
         });
 
+        // Auction copies may reuse the completed history report from the same
+        // vehicle/listing. If the source has no completed report (legacy data),
+        // create a fresh pending review instead. Retail copies deliberately do
+        // not reuse reports because classified relisting requires a fresh check.
+        const sourceHpi = await this.prisma.hpiReport.findUnique({ where: { listingId } });
+        if (sourceHpi?.status === 'COMPLETED') {
+            await this.prisma.hpiReport.create({
+                data: {
+                    listingId: auctionListing.id,
+                    vrm: sourceHpi.vrm || source.vrm || '',
+                    data: sourceHpi.data as any,
+                    isClear: sourceHpi.isClear,
+                    status: 'COMPLETED',
+                    source: sourceHpi.source,
+                    reportData: sourceHpi.reportData as any,
+                    pdfData: sourceHpi.pdfData,
+                    pdfFileName: sourceHpi.pdfFileName,
+                    pdfSizeBytes: sourceHpi.pdfSizeBytes,
+                    pdfUploadedAt: sourceHpi.pdfUploadedAt,
+                    preparedById: sourceHpi.preparedById,
+                    preparedAt: sourceHpi.preparedAt,
+                } as any,
+            });
+        } else {
+            this.queueMandatoryHpiReview(auctionListing.id, auctionListing.vrm);
+        }
+
         const auction = await this.prisma.auction.create({
             data: {
                 listingId: auctionListing.id,
@@ -1351,6 +1396,7 @@ export class ListingsService {
             data: { linkedListingId: auctionListing.id } as any,
         });
 
+        await this.notifySubmittedForReview(auctionListing);
         return { linkedListingId: auctionListing.id, auctionId: auction.id };
     }
 

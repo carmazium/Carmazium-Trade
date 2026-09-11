@@ -6,6 +6,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { EmailService } from '../email/email.service';
 import { resolveFrontendUrl } from '../core/frontend-url';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class PaymentsService {
@@ -17,6 +18,16 @@ export class PaymentsService {
         private readonly notificationsGateway: NotificationsGateway,
         private readonly emailService: EmailService,
     ) {}
+
+    /** Ensure a paid classified listing enters the same mandatory HPI queue as a free auction listing. */
+    private async queueMandatoryHpiReview(listingId: string) {
+        const listing = await this.prisma.listing.findUnique({
+            where: { id: listingId },
+            select: { vrm: true },
+        });
+        if (!listing) return;
+        await this.hpiService.createPendingReport(listingId, listing.vrm ?? '');
+    }
 
     /**
      * Notify a seller in-app that their listing fee payment went through and the
@@ -121,8 +132,6 @@ export class PaymentsService {
      * Create a Stripe Checkout Session for a vehicle purchase or deposit.
      */
     private readonly AUCTION_BUYER_FEE = 125;
-    private readonly AUCTION_SELLER_BONUS = 100;
-    private readonly AUCTION_PLATFORM_FEE = 25;
 
     async createCheckoutSession(
         listingId: string,
@@ -169,7 +178,7 @@ export class PaymentsService {
         const descriptionMap: Record<string, string> = {
             DEPOSIT: `Refundable deposit for ${listing.title}`,
             FULL_PAYMENT: `Full payment for ${listing.title}`,
-            COMMISSION: `Auction buyer fee — ${listing.title} (£${this.AUCTION_SELLER_BONUS} seller bonus + £${this.AUCTION_PLATFORM_FEE} platform fee)`,
+            COMMISSION: `£${this.AUCTION_BUYER_FEE} CarMazium auction buyer fee — ${listing.title}`,
         };
 
         const transaction = await this.prisma.transaction.create({
@@ -192,7 +201,7 @@ export class PaymentsService {
         const productDescMap: Record<string, string> = {
             DEPOSIT: 'Refundable deposit — secures your vehicle',
             FULL_PAYMENT: `Full payment for ${listing.make || ''} ${listing.model || ''} ${listing.year || ''}`.trim(),
-            COMMISSION: `£${this.AUCTION_SELLER_BONUS} released to seller after handover · £${this.AUCTION_PLATFORM_FEE} Carmazium platform fee (non-refundable)`,
+            COMMISSION: `£${this.AUCTION_BUYER_FEE} CarMazium auction buyer fee · seller incentive is funded separately by CarMazium`,
         };
 
         const session = await stripe.checkout.sessions.create({
@@ -607,6 +616,150 @@ export class PaymentsService {
     }
 
     /**
+     * Create Stripe Checkout for a locked TradeXchange transaction. The quote
+     * amount and 9% fee were calculated by the database when the customer
+     * accepted the offer, so no monetary value is accepted from the browser.
+     */
+    async createTradeXchangeCheckout(jobId: string, userId: string) {
+        if (!jobId) throw new BadRequestException('jobId is required');
+
+        const rows = await this.prisma.$queryRaw<Array<{
+            id: string;
+            job_id: string;
+            customer_user_id: string;
+            gross_amount_pence: number;
+            payment_status: string;
+            stripe_checkout_session_id: string | null;
+            title: string;
+        }>>(Prisma.sql`
+            SELECT t.id, t.job_id, t.customer_user_id, t.gross_amount_pence,
+                   t.payment_status, t.stripe_checkout_session_id, j.title
+            FROM public.tradexchange_transactions t
+            JOIN public.tradexchange_jobs j ON j.id = t.job_id
+            WHERE t.job_id = ${jobId}::uuid
+              AND t.customer_user_id = ${userId}
+            LIMIT 1
+        `);
+        const transaction = rows[0];
+        if (!transaction) {
+            throw new NotFoundException('No accepted TradeXchange quote was found for this job');
+        }
+        if (transaction.payment_status === 'paid') {
+            throw new BadRequestException('This TradeXchange service has already been paid');
+        }
+
+        const stripe = await this.getStripe();
+        if (transaction.stripe_checkout_session_id) {
+            try {
+                const existing = await stripe.checkout.sessions.retrieve(transaction.stripe_checkout_session_id);
+                if (existing.status === 'open' && existing.url) {
+                    return { url: existing.url, sessionId: existing.id, transactionId: transaction.id };
+                }
+                if (existing.status === 'complete' && existing.payment_status === 'paid') {
+                    await this.settleTradeXchangeSession(existing);
+                    throw new BadRequestException('This TradeXchange service has already been paid');
+                }
+            } catch (err: any) {
+                if (err instanceof BadRequestException) throw err;
+                // Expired/deleted Stripe sessions are replaced below.
+            }
+        }
+
+        const baseUrl = resolveFrontendUrl(this.config.get<string>('FRONTEND_URL') || this.config.get<string>('NEXT_PUBLIC_BASE_URL'));
+        const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            mode: 'payment',
+            line_items: [{
+                price_data: {
+                    currency: 'gbp',
+                    unit_amount: transaction.gross_amount_pence,
+                    product_data: {
+                        name: 'CarMazium TradeXchange service',
+                        description: transaction.title,
+                    },
+                },
+                quantity: 1,
+            }],
+            ...(user?.email ? { customer_email: user.email } : {}),
+            client_reference_id: transaction.id,
+            metadata: {
+                type: 'TRADEXCHANGE_SERVICE',
+                transactionId: transaction.id,
+                jobId: transaction.job_id,
+                userId: transaction.customer_user_id,
+            },
+            payment_intent_data: {
+                metadata: {
+                    type: 'TRADEXCHANGE_SERVICE',
+                    transactionId: transaction.id,
+                    jobId: transaction.job_id,
+                },
+            },
+            success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${baseUrl}/services?tab=jobs&payment=cancelled`,
+        }, { idempotencyKey: `tradexchange-${transaction.id}-${transaction.stripe_checkout_session_id || 'initial'}` });
+
+        await this.prisma.$executeRaw(Prisma.sql`
+            UPDATE public.tradexchange_transactions
+            SET stripe_checkout_session_id = ${session.id}, updated_at = now()
+            WHERE id = ${transaction.id}::uuid AND payment_status = 'pending'
+        `);
+
+        return { url: session.url, sessionId: session.id, transactionId: transaction.id };
+    }
+
+    /** Stripe-verified TradeXchange settlement. Safe to call repeatedly. */
+    private async settleTradeXchangeSession(session: any) {
+        const metadata = session.metadata ?? {};
+        const transactionId = metadata.transactionId;
+        const jobId = metadata.jobId;
+        const customerUserId = metadata.userId;
+        if (!transactionId || !jobId || !customerUserId) {
+            throw new BadRequestException('TradeXchange checkout metadata is incomplete');
+        }
+        if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') {
+            return false;
+        }
+        const amountTotal = Number(session.amount_total ?? 0);
+        const currency = String(session.currency ?? '').toUpperCase();
+        const paymentIntentId = typeof session.payment_intent === 'string'
+            ? session.payment_intent
+            : session.payment_intent?.id ?? null;
+
+        const result = await this.prisma.$queryRaw<Array<{ settled: boolean }>>(Prisma.sql`
+            SELECT public.tradexchange_settle_checkout(
+                ${transactionId}::uuid,
+                ${session.id},
+                ${jobId}::uuid,
+                ${customerUserId},
+                ${currency},
+                ${amountTotal},
+                ${paymentIntentId}
+            ) AS settled
+        `);
+        return result[0]?.settled ?? false;
+    }
+
+    /**
+     * Webhook-delay fallback for the authenticated customer. Stripe is queried
+     * directly, so a browser redirect alone can never mark a service as paid.
+     */
+    async applyTradeXchangePayment(sessionId: string, userId: string) {
+        const stripe = await this.getStripe();
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        const metadata = session.metadata ?? {};
+        if (metadata.type !== 'TRADEXCHANGE_SERVICE' || metadata.userId !== userId) {
+            throw new BadRequestException('This checkout session is not your TradeXchange payment');
+        }
+        if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') {
+            return { applied: false, paymentStatus: session.payment_status };
+        }
+        const applied = await this.settleTradeXchangeSession(session);
+        return { applied, paymentStatus: session.payment_status };
+    }
+
+    /**
      * Handle Stripe webhook events with signature verification.
      */
     async handleWebhook(rawBody: Buffer, signature: string) {
@@ -623,7 +776,14 @@ export class PaymentsService {
         switch (event.type) {
             case 'checkout.session.completed': {
                 const session = event.data.object;
-                const { transactionId, listingId, type, boostId, kycId } = session.metadata;
+                const { transactionId, listingId, type, boostId, kycId } = session.metadata ?? {};
+
+                // TradeXchange transactions live in their own ledger, not the
+                // vehicle-payment Transaction table below. Settle and stop here.
+                if (type === 'TRADEXCHANGE_SERVICE') {
+                    await this.settleTradeXchangeSession(session);
+                    break;
+                }
 
                 // 0. Handle Dealer KYC £1 verification fee
                 if (type === 'KYC_VERIFICATION' && kycId) {
@@ -709,6 +869,7 @@ export class PaymentsService {
                             rejectionReason: null,
                         },
                     });
+                    await this.queueMandatoryHpiReview(listingId);
                     this.notifyListingSubmittedForReview(listingId).catch(() => { });
                 }
 
@@ -775,6 +936,7 @@ export class PaymentsService {
                             rejectionReason: null,
                         },
                     });
+                    await this.queueMandatoryHpiReview(listingId);
                     this.notifyListingSubmittedForReview(listingId).catch(() => { });
                 }
 
@@ -1058,8 +1220,9 @@ export class PaymentsService {
     }
 
     /**
-     * Issue a partial Stripe refund of £100 to the auction buyer (platform keeps £25).
-     * Called by admin when denying a handover proof.
+     * Refund the full £125 auction buyer fee when an auction sale is formally
+     * cancelled (for example after a verified undisclosed-fault dispute).
+     * Handover-proof rejection is a separate review action and does not refund.
      */
     async issueRefundForAuction(auctionId: string): Promise<void> {
         const auction = await this.prisma.auction.findUnique({ where: { id: auctionId } });
@@ -1069,17 +1232,33 @@ export class PaymentsService {
             where: { id: auction.buyerFeeTransactionId },
         });
         if (!transaction?.stripePaymentId) return;
+        if (transaction.status === ('REFUNDED' as any)) return;
 
         const stripe = await this.getStripe();
-        const session = await stripe.checkout.sessions.retrieve(transaction.stripePaymentId);
-        const paymentIntentId = session.payment_intent as string;
 
-        if (paymentIntentId) {
-            await stripe.refunds.create({
-                payment_intent: paymentIntentId,
-                amount: 10000, // £100 in pence — platform keeps the £25 fee
-            });
+        // Checkout and native Payment Sheet persist different Stripe object IDs.
+        // Resolve both current pi_ references and legacy cs_ session references.
+        let paymentIntentId: string | null = null;
+        if (transaction.stripePaymentId.startsWith('pi_')) {
+            paymentIntentId = transaction.stripePaymentId;
+        } else if (transaction.stripePaymentId.startsWith('cs_')) {
+            const session = await stripe.checkout.sessions.retrieve(transaction.stripePaymentId);
+            paymentIntentId = typeof session.payment_intent === 'string'
+                ? session.payment_intent
+                : session.payment_intent?.id ?? null;
         }
+
+        if (!paymentIntentId) {
+            throw new BadRequestException('Unable to resolve the Stripe PaymentIntent for this auction buyer fee.');
+        }
+
+        await stripe.refunds.create({
+            payment_intent: paymentIntentId,
+            amount: this.AUCTION_BUYER_FEE * 100, // full £125 fee in pence
+        }, {
+            // Protect against a retry after Stripe succeeds but before our DB status update.
+            idempotencyKey: `auction-buyer-fee-refund:${auctionId}`,
+        });
 
         await this.prisma.transaction.update({
             where: { id: auction.buyerFeeTransactionId },

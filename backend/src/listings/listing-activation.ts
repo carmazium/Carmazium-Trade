@@ -1,9 +1,8 @@
 /**
  * The field changes that take a listing live.
  *
- * Shared by AdminService.approveListing (an admin approving someone else's
- * listing) and ListingsService.publishListing (an admin publishing their own,
- * which skips review entirely).
+ * Used by AdminService.approveListing once the mandatory vehicle-history/HPI
+ * review and listing review have both completed.
  *
  * It exists because going ACTIVE is more than setting a status: PREMIUM
  * listings also get `isFeatured` and a 28-day `featuredUntil` window, which is

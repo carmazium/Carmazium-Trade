@@ -67,6 +67,19 @@ export class PaymentsController {
         return new StandardResponse(result);
     }
 
+    @Post('tradexchange-checkout')
+    @UseGuards(SessionAuthGuard)
+    @ApiCookieAuth()
+    @ApiOperation({ summary: 'Create Stripe Checkout for an accepted TradeXchange service quote' })
+    async createTradeXchangeCheckout(
+        @Body('jobId') jobId: string,
+        @CurrentUser() user: any,
+    ) {
+        if (!jobId) throw new BadRequestException('jobId is required');
+        const result = await this.paymentsService.createTradeXchangeCheckout(jobId, user.id);
+        return new StandardResponse(result);
+    }
+
     @Post('hpi-checkout')
     @UseGuards(SessionAuthGuard)
     @ApiCookieAuth()
@@ -119,6 +132,19 @@ export class PaymentsController {
     async getSessionStatus(@Param('sessionId') sessionId: string) {
         const status = await this.paymentsService.getSessionStatus(sessionId);
         return new StandardResponse(status);
+    }
+
+    @Post('apply-tradexchange-payment')
+    @UseGuards(SessionAuthGuard)
+    @ApiCookieAuth()
+    @ApiOperation({ summary: 'Webhook fallback: reconcile a TradeXchange service payment with Stripe' })
+    async applyTradeXchangePayment(
+        @Body('sessionId') sessionId: string,
+        @CurrentUser() user: any,
+    ) {
+        if (!sessionId) throw new BadRequestException('sessionId is required');
+        const result = await this.paymentsService.applyTradeXchangePayment(sessionId, user.id);
+        return new StandardResponse(result);
     }
 
     @Post('apply-auction-fee')

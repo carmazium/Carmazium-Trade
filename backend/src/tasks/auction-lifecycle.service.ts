@@ -46,9 +46,13 @@ export class AuctionLifecycleService {
         });
 
         for (const auction of toActivate) {
+            // If admin/HPI review held the auction past its requested start, begin
+            // a fresh full 24-hour window now rather than shortening the sale.
+            const actualStart = now > auction.startTime ? now : auction.startTime;
+            const actualEnd = new Date(actualStart.getTime() + 24 * 60 * 60 * 1000);
             await this.prisma.auction.update({
                 where: { id: auction.id },
-                data: { status: 'ACTIVE' },
+                data: { status: 'ACTIVE', startTime: actualStart, endTime: actualEnd },
             });
             this.auctionGateway.broadcastAuctionStart(auction.id);
             this.logger.log(`Activated auction ${auction.id}`);

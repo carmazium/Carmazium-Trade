@@ -891,7 +891,7 @@ export class EmailService {
                 ${reports.length} HPI report${reports.length === 1 ? '' : 's'} still outstanding
             </h1>
             <p style="margin: 0 0 24px; font-size: 15px; color: #cbd5e1; line-height: 1.6;">
-                These vehicles are already live on CarMazium with a report someone has paid for but hasn't received yet.
+                These listings are waiting for their mandatory vehicle-history review before they can go live. Paid buyer email copies, if any, are shown alongside them.
             </p>
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">${rows}</table>
             <div style="text-align: center; margin: 32px 0 24px;">

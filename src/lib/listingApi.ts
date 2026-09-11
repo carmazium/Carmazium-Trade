@@ -202,7 +202,7 @@ export interface Listing {
     deliveryPricePerMile?: number | string | null
     deliveryMaxMiles?: number | null
     sellerId: string | null
-    // Present only when the seller actually requested/paid for an HPI report
+    // Mandatory listing HPI report once it has been seeded by the review workflow
     // — null/undefined means none exists yet, not that one is empty.
     hpiReport?: { status: 'PENDING' | 'COMPLETED'; isClear: boolean; purchasedAt: string } | null
     isFeatured: boolean

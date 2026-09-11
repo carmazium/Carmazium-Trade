@@ -70,7 +70,7 @@ const STAGE_LABELS: Record<HandoverStage, { label: string; hint: string; icon: R
     },
     denied: {
         label: "Refund in progress",
-        hint: "The submitted proof wasn't accepted. £100 of your £125 fee is being refunded to you.",
+        hint: "The sale has been cancelled through the failed-sale process. Your £125 buyer fee is being refunded in full.",
         icon: XCircle,
         tint: "bg-red-500/10 text-red-400 border-red-500/25",
     },
@@ -517,7 +517,7 @@ export default function MyBidsPage() {
                     {!isEmpty && !isLoading && !loadError && (
                         <div className="dealer-glass-card p-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[var(--text-muted)]">
                             <span className="flex items-center gap-1.5"><Car size={13} /> The winning bid itself is paid directly to the seller, not through Carmazium.</span>
-                            <span className="flex items-center gap-1.5"><CreditCard size={13} /> The £125 buyer fee is Carmazium&apos;s fee — up to £100 of it is refunded if handover is denied.</span>
+                            <span className="flex items-center gap-1.5"><CreditCard size={13} /> The £125 buyer fee is CarMazium&apos;s auction fee. If CarMazium approves a failed-sale cancellation, the fee is refunded in full.</span>
                         </div>
                     )}
                 </main>

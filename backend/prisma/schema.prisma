@@ -738,12 +738,11 @@ model Listing {
 // HPI REPORTS
 // ============================================================================
 
-/// A report is created the moment the seller pays, in PENDING state with no
-/// data — an admin then either fills in the check results (generating the
-/// branded PDF) or uploads the supplied PDF directly, which flips it to
-/// COMPLETED. A PENDING report does NOT hold up the listing: it can be
-/// published and even sell first, with the report attached later.
-/// Rows predating that change were
+/// Every listing must have a vehicle-history report before it can go live.
+/// A PENDING row is created as part of admin review; staff then either fill in
+/// the check results (generating the branded PDF) or upload the supplied PDF,
+/// which flips it to COMPLETED. PENDING reports block listing approval.
+/// Rows predating the admin-prepared workflow were
 /// auto-generated from OneAutoAPI and are already COMPLETED/ONE_AUTO_API by
 /// virtue of the column defaults, so they keep rendering from `data` as before.
 model HpiReport {
@@ -868,7 +867,7 @@ model Auction {
   sellerBonusReleasedAt  DateTime?
   stripePayoutTransferId String?   // Set when Stripe transfer succeeds
   stripePayoutError      String?   // Set when auto-payout didn't happen (no Connect account, Stripe error, or test-mode skip) — needs manual action
-  stripeRefundError      String?   // Set if the buyer-fee refund fails on handover denial — needs manual action
+  stripeRefundError      String?   // Set if an approved failed-sale buyer-fee refund fails — needs manual action
   // Set once an admin manually confirms they've paid the seller outside Stripe
   // (bank transfer). sellerBonusReleased means "handover approved" — this is
   // the separate "the £100 has actually reached the seller" signal; without

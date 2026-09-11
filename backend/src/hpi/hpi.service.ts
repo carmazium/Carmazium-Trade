@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { HpiPdfService } from './hpi-pdf.service';
 import { EmailService } from '../email/email.service';
@@ -14,17 +15,16 @@ import {
 /**
  * HPI reports are prepared by CarMazium staff, not fetched from an API.
  *
- * A seller opting in at listing time creates a PENDING row the moment their
- * payment clears; an admin then completes it one of two ways:
+ * Every listing enters a PENDING vehicle-history review before publication;
+ * an admin then completes it one of two ways:
  *   - the structured form, which computes `isClear` from the checks and lets
  *     us render our own branded PDF (saveAdminReport), or
  *   - uploading the supplied third-party PDF wholesale, where `isClear` is a
  *     deliberate admin call rather than derived (saveAdminPdf).
  *
- * A PENDING report does NOT hold up the listing. It publishes, runs, and can
- * even sell while the report is still outstanding — the admin attaches it
- * afterwards from the HPI queue, and everyone waiting on it (the seller, and
- * any buyer who paid for an emailed copy) is notified at that point.
+ * A PENDING report blocks admin approval, so the listing cannot go live until
+ * the check is completed. Buyers can still separately request a paid emailed
+ * copy of the completed report where that feature is offered.
  *
  * Rows created before this change came from OneAutoAPI and carry
  * source=ONE_AUTO_API with the raw response in `data` — they still render
@@ -46,10 +46,9 @@ export class HpiService {
     ) { }
 
     /**
-     * Called when an HPI payment clears. Idempotent: Stripe can deliver the
-     * webhook more than once, and the checkout-success page calls the same
-     * fallback path, so this must never create a second row or clobber a
-     * report an admin has already filled in.
+     * Create the listing's HPI review row. Idempotent so admin-review seeding,
+     * legacy payment callbacks and retries can all call it without creating a
+     * duplicate or clobbering a completed report.
      */
     async createPendingReport(listingId: string, vrm: string, transactionId?: string) {
         const existing = await this.prisma.hpiReport.findUnique({ where: { listingId } });
@@ -66,6 +65,7 @@ export class HpiService {
                 status: 'PENDING',
                 source: 'ADMIN',
                 isClear: false,
+                purchasedAt: new Date(),
             },
         });
 
@@ -82,13 +82,41 @@ export class HpiService {
     }
 
     /**
-     * Reports someone has paid for that haven't been produced yet.
-     *
-     * Since a pending report no longer blocks approval, these listings are
-     * mostly already live — this queue is the only place they surface, so it
-     * carries the listing's own status and the number of buyers whose paid
-     * email copy is stuck waiting on it, which is what makes one row more
-     * urgent than another.
+     * Start a fresh mandatory report cycle for a retail relist. The current
+     * schema stores one report row per listing, so the row is reset in place;
+     * already-sent buyer email records remain as delivery history.
+     */
+    async resetForFreshListingReview(listingId: string, vrm: string) {
+        const existing = await this.prisma.hpiReport.findUnique({ where: { listingId } });
+        if (!existing) return this.createPendingReport(listingId, vrm);
+
+        return this.prisma.hpiReport.update({
+            where: { listingId },
+            data: {
+                vrm,
+                status: 'PENDING',
+                source: 'ADMIN',
+                isClear: false,
+                transactionId: null,
+                // A retail relist requires a genuinely fresh history check. Do not
+                // let the previous raw/structured report survive behind PENDING.
+                data: Prisma.DbNull,
+                reportData: Prisma.DbNull,
+                pdfData: null,
+                pdfFileName: null,
+                pdfSizeBytes: null,
+                pdfUploadedAt: null,
+                preparedById: null,
+                preparedAt: null,
+                reminderSentAt: null,
+            },
+        });
+    }
+
+    /**
+     * Mandatory listing reports that have not been produced yet. The queue
+     * also carries the number of buyers whose separately paid emailed copy is
+     * waiting on the same report.
      */
     async getPendingReports() {
         const reports = await this.prisma.hpiReport.findMany({
@@ -109,7 +137,7 @@ export class HpiService {
                         seller: { select: { id: true, firstName: true, lastName: true, email: true } },
                     },
                 },
-                _count: { select: { emailRequests: true } },
+                _count: { select: { emailRequests: { where: { status: 'PENDING' } } } },
             },
         });
 
@@ -326,11 +354,10 @@ export class HpiService {
     /**
      * Returns the listing's report row, creating a PENDING one if it's missing.
      *
-     * Normally the row is created the moment a payment clears. But a webhook can
-     * be missed, and staff reaching this from the transaction ledger are looking
-     * at proof that someone paid — refusing to let them attach the report because
-     * of our own bookkeeping gap would strand the payer with no way to be served.
-     * Admin-only, so the worst case is a report attached to a listing that didn't
+     * Normally the row is created when a listing enters PENDING_REVIEW. This
+     * fallback keeps older records and webhook/review edge cases serviceable if
+     * the row was never seeded. Admin-only, so the worst case is a report attached
+     * to a listing that did not
      * strictly ask for one, which is recoverable; the alternative isn't.
      */
     private async ensureReportRow(listingId: string) {
@@ -378,9 +405,8 @@ export class HpiService {
     }
 
     /**
-     * The seller paid for this report and — now that publishing no longer waits
-     * on it — may have been living with a listing that said "being prepared"
-     * for days. Telling them it landed is the whole point of allowing the delay.
+     * Tell the seller that the mandatory vehicle-history review is complete.
+     * Re-saving an already completed report does not repeat this notification.
      */
     private async notifySellerReportReady(listingId: string) {
         const listing = await this.prisma.listing.findUnique({
@@ -463,11 +489,10 @@ export class HpiService {
 
     // ── Buyer-paid email delivery ───────────────────────────────────────────
     //
-    // Separate from the seller-side flow above: a buyer pays £9.99 to have
+    // Separate from the mandatory listing-review flow above: a buyer pays £9.99 to have
     // the *same* report emailed to them personally. Payment and delivery are
     // deliberately decoupled — a buyer can pay before a report exists at all,
-    // which itself puts the listing into the admin queue exactly like a
-    // seller's request would. Delivery either fires immediately (report
+    // which also ensures the report is present in the admin queue. Delivery either fires immediately (report
     // already COMPLETED) or waits and is picked up by the fan-out in
     // saveAdminReport() above.
 

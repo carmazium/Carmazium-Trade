@@ -1,0 +1,332 @@
+import { supabase } from '@/lib/supabase'
+
+export type TradeServiceCategory = 'delivery' | 'inspection' | 'finance' | 'warranty'
+export type JobServiceCategory = 'delivery' | 'inspection'
+export type LeadServiceCategory = 'finance' | 'warranty'
+export type TradeOfferStatus = 'submitted' | 'withdrawn' | 'accepted' | 'declined' | 'rejected' | 'expired'
+
+export interface ProviderJobFeedRow {
+    id: string
+    category: JobServiceCategory
+    title: string
+    description: string
+    collection_location?: string | null
+    delivery_location?: string | null
+    preferred_date?: string | null
+    budget_pence?: number | null
+    vehicle_label?: string | null
+    created_at: string
+    offer_count: number
+    my_business_id: string
+    my_offer_id?: string | null
+    my_offer_amount_pence?: number | null
+    my_offer_status?: TradeOfferStatus | null
+}
+
+export interface MyServiceJob {
+    id: string
+    category: JobServiceCategory
+    title: string
+    description: string
+    status: string
+    collection_location?: string | null
+    delivery_location?: string | null
+    preferred_date?: string | null
+    budget_pence?: number | null
+    vehicle_label?: string | null
+    agreed_amount_pence?: number | null
+    platform_fee_pence?: number | null
+    provider_amount_pence?: number | null
+    provider_dealer_profile_id?: string | null
+    created_at: string
+}
+
+export interface MyServiceOffer {
+    id: string
+    job_id: string
+    amount_pence: number
+    status: TradeOfferStatus
+    created_at: string
+    message?: string | null
+    available_from?: string | null
+    service_jobs?: {
+        id: string
+        category: JobServiceCategory
+        title: string
+        status?: string | null
+    } | null
+}
+
+export interface ServiceOfferBoardRow {
+    offer_id: string
+    business_id: string
+    business_name: string
+    business_slug?: string | null
+    verification_status?: string | null
+    amount_pence: number
+    message?: string | null
+    available_from?: string | null
+    status: TradeOfferStatus
+    created_at: string
+    rating?: number | null
+    review_count?: number | null
+    badges?: string[] | null
+    about?: string | null
+    public_website?: string | null
+}
+
+export interface ServiceJobContact {
+    contact_name?: string | null
+    contact_phone?: string | null
+    contact_notes?: string | null
+}
+
+export const TRADE_PLATFORM_FEE_BPS = 900
+
+export const tradeServiceCategoryLabel: Record<TradeServiceCategory, string> = {
+    delivery: 'Delivery & Recovery',
+    inspection: 'Vehicle Inspection',
+    finance: 'Vehicle Finance',
+    warranty: 'Vehicle Warranty',
+}
+
+export function tradeFeeBreakdown(amountPence: number) {
+    const gross = Math.max(0, Math.round(amountPence))
+    const fee = Math.round((gross * TRADE_PLATFORM_FEE_BPS) / 10_000)
+    return { gross, fee, net: gross - fee }
+}
+
+export function formatTradePounds(pence: number | null | undefined) {
+    if (pence === null || pence === undefined) return '—'
+    return new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+        minimumFractionDigits: pence % 100 === 0 ? 0 : 2,
+        maximumFractionDigits: 2,
+    }).format(pence / 100)
+}
+
+export function poundsToPence(value: string): number | null {
+    const cleaned = value.replace(/[£,\s]/g, '')
+    if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null
+    const pence = Math.round(Number(cleaned) * 100)
+    return pence > 0 ? pence : null
+}
+
+function tradeError(error: { message?: string } | null, fallback: string): Error {
+    return new Error(error?.message || fallback)
+}
+
+function fromDbCategory(serviceType: string | null | undefined): JobServiceCategory {
+    return serviceType === 'vehicle_inspection' ? 'inspection' : 'delivery'
+}
+
+function normaliseOfferStatus(status: string | null | undefined): TradeOfferStatus {
+    if (status === 'active') return 'submitted'
+    if (status === 'withdrawn' || status === 'accepted' || status === 'declined' || status === 'rejected' || status === 'expired') return status
+    return 'submitted'
+}
+
+/**
+ * RLS-backed redacted marketplace feed. The database decides which service
+ * categories the signed-in provider is approved to see; customer contact
+ * details are intentionally not returned here.
+ */
+export async function getProviderJobFeed(category: TradeServiceCategory | 'all' = 'all'): Promise<ProviderJobFeedRow[]> {
+    const { data, error } = await supabase.rpc(
+        'provider_job_feed',
+        category === 'all' ? {} : { _category: category },
+    )
+    if (error) throw tradeError(error, 'Could not load available jobs')
+    return (data ?? []) as ProviderJobFeedRow[]
+}
+
+export async function submitServiceOffer(input: {
+    jobId: string
+    businessId: string
+    amountPence: number
+    message?: string
+    availableFrom?: string
+}): Promise<string> {
+    const { data, error } = await supabase.rpc('submit_service_offer', {
+        _job_id: input.jobId,
+        _business_id: input.businessId,
+        _amount_pence: input.amountPence,
+        ...(input.message ? { _message: input.message } : {}),
+        ...(input.availableFrom ? { _available_from: input.availableFrom } : {}),
+    })
+    if (error) throw tradeError(error, 'Could not send quote')
+    return String(data ?? '')
+}
+
+export async function withdrawServiceOffer(offerId: string): Promise<void> {
+    const { error } = await supabase.rpc('withdraw_service_offer', { _offer_id: offerId })
+    if (error) throw tradeError(error, 'Could not withdraw quote')
+}
+
+/**
+ * Production uses the `tradexchange_*` table family. We deliberately load the
+ * jobs separately instead of relying on a PostgREST relation so this keeps
+ * working when the database is managed independently from Prisma's FK graph.
+ */
+export async function getMyServiceOffers(): Promise<MyServiceOffer[]> {
+    const { data: offers, error } = await supabase
+        .from('tradexchange_offers')
+        .select('id, job_id, amount_pence, status, created_at, message, available_from')
+        .order('created_at', { ascending: false })
+        .limit(200)
+    if (error) throw tradeError(error, 'Could not load your quotes')
+
+    const rows = offers ?? []
+    const jobIds = [...new Set(rows.map((offer: any) => offer.job_id).filter(Boolean))]
+    const jobsById = new Map<string, any>()
+    if (jobIds.length) {
+        const { data: jobs, error: jobsError } = await supabase
+            .from('tradexchange_jobs')
+            .select('id, service_type, title, status')
+            .in('id', jobIds)
+        if (jobsError) throw tradeError(jobsError, 'Could not load quote jobs')
+        for (const job of jobs ?? []) jobsById.set(job.id, job)
+    }
+
+    return rows.map((offer: any) => {
+        const job = jobsById.get(offer.job_id)
+        return {
+            id: offer.id,
+            job_id: offer.job_id,
+            amount_pence: offer.amount_pence,
+            status: normaliseOfferStatus(offer.status),
+            created_at: offer.created_at,
+            message: offer.message,
+            available_from: offer.available_from,
+            service_jobs: job ? {
+                id: job.id,
+                category: fromDbCategory(job.service_type),
+                title: job.title,
+                status: job.status,
+            } : null,
+        }
+    })
+}
+
+export async function getMyServiceJobs(): Promise<MyServiceJob[]> {
+    const { data, error } = await supabase
+        .from('tradexchange_jobs')
+        .select('id, service_type, title, description, status, pickup_postcode, delivery_postcode, service_postcode, requested_for, budget_pence, vehicle_label, agreed_amount_pence, platform_fee_pence, provider_amount_pence, provider_dealer_profile_id, created_at')
+        .order('created_at', { ascending: false })
+        .limit(200)
+    if (error) throw tradeError(error, 'Could not load your service jobs')
+
+    return (data ?? []).map((job: any) => ({
+        id: job.id,
+        category: fromDbCategory(job.service_type),
+        title: job.title,
+        description: job.description || '',
+        status: job.status,
+        collection_location: job.service_type === 'delivery_recovery' ? job.pickup_postcode : job.service_postcode,
+        delivery_location: job.service_type === 'delivery_recovery' ? job.delivery_postcode : null,
+        preferred_date: job.requested_for,
+        budget_pence: job.budget_pence,
+        vehicle_label: job.vehicle_label,
+        agreed_amount_pence: job.agreed_amount_pence,
+        platform_fee_pence: job.platform_fee_pence,
+        provider_amount_pence: job.provider_amount_pence,
+        provider_dealer_profile_id: job.provider_dealer_profile_id,
+        created_at: job.created_at,
+    }))
+}
+
+export async function postServiceJob(input: {
+    category: JobServiceCategory
+    title: string
+    description: string
+    collectionLocation?: string
+    deliveryLocation?: string
+    preferredDate?: string
+    budgetPence?: number | null
+    contactPhone?: string
+    contactNotes?: string
+    vehicleLabel?: string
+    posterBusinessId?: string | null
+}): Promise<string> {
+    const { data, error } = await supabase.rpc('post_service_job', {
+        _category: input.category,
+        _title: input.title,
+        _description: input.description,
+        ...(input.collectionLocation ? { _collection_location: input.collectionLocation } : {}),
+        ...(input.deliveryLocation ? { _delivery_location: input.deliveryLocation } : {}),
+        ...(input.preferredDate ? { _preferred_date: input.preferredDate } : {}),
+        ...(input.budgetPence ? { _budget_pence: input.budgetPence } : {}),
+        ...(input.contactPhone ? { _contact_phone: input.contactPhone } : {}),
+        ...(input.contactNotes ? { _contact_notes: input.contactNotes } : {}),
+        ...(input.vehicleLabel ? { _vehicle_label: input.vehicleLabel } : {}),
+        ...(input.posterBusinessId ? { _poster_business_id: input.posterBusinessId } : {}),
+    })
+    if (error) throw tradeError(error, 'Could not post service job')
+    return String(data ?? '')
+}
+
+export async function cancelServiceJob(jobId: string, reason?: string): Promise<void> {
+    const { error } = await supabase.rpc('cancel_service_job', {
+        _job_id: jobId,
+        ...(reason ? { _reason: reason } : {}),
+    })
+    if (error) throw tradeError(error, 'Could not cancel service job')
+}
+
+export async function getServiceJobOfferBoard(jobId: string): Promise<ServiceOfferBoardRow[]> {
+    const { data, error } = await supabase.rpc('service_job_offer_board', { _job_id: jobId })
+    if (error) throw tradeError(error, 'Could not load competing quotes')
+    return ((data ?? []) as any[]).map(row => ({ ...row, status: normaliseOfferStatus(row.status) }))
+}
+
+export async function acceptServiceOffer(offerId: string): Promise<string> {
+    const { data, error } = await supabase.rpc('accept_service_offer', { _offer_id: offerId })
+    if (error) throw tradeError(error, 'Could not accept this quote')
+    return String(data ?? '')
+}
+
+export async function getServiceJobContact(jobId: string): Promise<ServiceJobContact | null> {
+    const { data, error } = await supabase.rpc('service_job_contact', { _job_id: jobId })
+    if (error) throw tradeError(error, 'Could not load service contact details')
+    return Array.isArray(data) ? (data[0] ?? null) : null
+}
+
+export async function confirmServiceJobCompletion(jobId: string): Promise<string> {
+    const { data, error } = await supabase.rpc('confirm_service_job_completion', { _job_id: jobId })
+    if (error) throw tradeError(error, 'Could not confirm completion')
+    return String(data ?? '')
+}
+
+export async function reportServiceJobIssue(jobId: string, kind: 'no_show' | 'failed' | 'disputed', detail?: string): Promise<void> {
+    const { error } = await supabase.rpc('report_service_job_issue', {
+        _job_id: jobId,
+        _kind: kind,
+        ...(detail ? { _detail: detail } : {}),
+    })
+    if (error) throw tradeError(error, 'Could not report this service issue')
+}
+
+export async function submitTradeLead(input: {
+    type: LeadServiceCategory
+    registration: string
+    vehicleDetails?: Record<string, unknown>
+    enquiryDetails?: Record<string, unknown>
+    contactName?: string
+    contactEmail?: string
+    contactPhone?: string
+    contactConsent: boolean
+}): Promise<string> {
+    const { data, error } = await supabase.rpc('tradexchange_submit_lead', {
+        p_type: input.type,
+        p_registration: input.registration,
+        p_vehicle_details: input.vehicleDetails ?? {},
+        p_enquiry_details: input.enquiryDetails ?? {},
+        p_contact_name: input.contactName || null,
+        p_contact_email: input.contactEmail || null,
+        p_contact_phone: input.contactPhone || null,
+        p_contact_consent: input.contactConsent,
+    })
+    if (error) throw tradeError(error, `Could not submit ${input.type} enquiry`)
+    return String(data ?? '')
+}

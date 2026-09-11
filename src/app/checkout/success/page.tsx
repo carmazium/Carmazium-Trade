@@ -5,9 +5,9 @@ import { Suspense, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { CheckCircle, ArrowRight, Home, Car, Loader2, PartyPopper, LayoutDashboard } from "lucide-react"
+import { CheckCircle, ArrowRight, Home, Car, Loader2, PartyPopper, LayoutDashboard, Briefcase } from "lucide-react"
 import { Button } from "@/components/ui/Button"
-import { getSessionStatus, applyAuctionFee, applyKycFee } from "@/lib/paymentApi"
+import { getSessionStatus, applyAuctionFee, applyKycFee, applyTradeXchangePayment } from "@/lib/paymentApi"
 import type { SessionStatus } from "@/lib/paymentApi"
 import { publishListing } from "@/lib/listingApi"
 import { useAuth } from "@/context/AuthContext"
@@ -58,6 +58,9 @@ function CheckoutSuccessContent() {
                 }
                 if (data?.metadata?.type === 'KYC_VERIFICATION') {
                     applyKycFee(sessionId).catch(() => {})
+                }
+                if (data?.metadata?.type === 'TRADEXCHANGE_SERVICE') {
+                    applyTradeXchangePayment(sessionId).catch(() => {})
                 }
                 // Guard against double-firing (effect re-run, repeated polls) — one
                 // Purchase event per completed Stripe Checkout Session.
@@ -158,6 +161,8 @@ function CheckoutSuccessContent() {
                             ? 'Verification Fee Paid!'
                             : sessionData?.metadata?.type === 'DEPOSIT'
                             ? 'Deposit Confirmed!'
+                            : sessionData?.metadata?.type === 'TRADEXCHANGE_SERVICE'
+                            ? 'Service Payment Confirmed!'
                             : 'Payment Successful!'}
                     </h1>
                     <p className="mt-3 text-lg text-gray-300">
@@ -169,6 +174,8 @@ function CheckoutSuccessContent() {
                             ? 'Your £1 verification fee is confirmed. Our team will review your dealer application shortly.'
                             : sessionData?.metadata?.type === 'DEPOSIT'
                             ? "Your £500 refundable deposit is confirmed and the seller has been notified. Message them to arrange the rest of the sale — the vehicle price itself is paid directly between you and the seller."
+                            : sessionData?.metadata?.type === 'TRADEXCHANGE_SERVICE'
+                            ? 'Your selected TradeXchange provider is now booked. CarMazium records the service payment as held until the completion workflow is finished.'
                             : 'Your transaction has been completed securely through Stripe.'}
                     </p>
                 </motion.div>
@@ -240,6 +247,19 @@ function CheckoutSuccessContent() {
                                 <LayoutDashboard size={18} /> Go to Dealer Dashboard <ArrowRight size={14} />
                             </Link>
                         </Button>
+                    ) : sessionData?.metadata?.type === 'TRADEXCHANGE_SERVICE' ? (
+                        <>
+                            <Button asChild className="gap-2 bg-gradient-to-r from-primary to-[#ff4d4d] hover:from-[#ff4d4d] hover:to-primary px-6">
+                                <Link href="/services?tab=jobs">
+                                    <Briefcase size={18} /> View Service Jobs <ArrowRight size={14} />
+                                </Link>
+                            </Button>
+                            <Button asChild variant="outline" className="gap-2 border-white/20 hover:bg-[var(--bg-card)]">
+                                <Link href="/auctions">
+                                    <Home size={18} /> Trade Exchange
+                                </Link>
+                            </Button>
+                        </>
                     ) : (
                         <>
                             <Button asChild className="gap-2 bg-gradient-to-r from-primary to-[#ff4d4d] hover:from-[#ff4d4d] hover:to-primary px-6">
