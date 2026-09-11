@@ -58,10 +58,26 @@ jobs:
         working-directory: backend
         run: npm test -- --runInBand auth/auth-security.spec.ts
 
+      - name: Install frontend dependencies
+        run: npm ci
+
       - name: Verify frontend production build
+        id: frontend_build
+        shell: bash
         run: |
-          npm ci
-          npm run build
+          set +e
+          npm run build 2>&1 | tee frontend-build.log
+          code=${PIPESTATUS[0]}
+          exit $code
+
+      - name: Upload frontend build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build-log
+          path: frontend-build.log
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Commit verified source changes
         run: |
@@ -73,4 +89,5 @@ jobs:
             exit 0
           fi
           git commit -m "fix(security): harden auth auction relists and failed-sale refunds"
+          git pull --rebase origin final/carmazium-completion
           git push origin HEAD:final/carmazium-completion
