@@ -23,7 +23,9 @@ jobs:
           ref: final/carmazium-completion
 
       - name: Apply production-hardening patch
-        run: python .github/scripts/production_hardening_90_95.py
+        run: |
+          python .github/scripts/production_hardening_90_95.py
+          python .github/scripts/frontend_hpi_resume_fix.py
 
       - name: Set up Node 24
         uses: actions/setup-node@v4
