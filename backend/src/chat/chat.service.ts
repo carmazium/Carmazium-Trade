@@ -5,9 +5,6 @@ import { Message } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 
-/**
- * Chat service handling all chat room and message operations
- */
 @Injectable()
 export class ChatService {
     constructor(
@@ -16,12 +13,6 @@ export class ChatService {
         private readonly notificationsGateway: NotificationsGateway,
     ) { }
 
-    /**
-     * Relations every room needs before it can be handed to the frontend —
-     * shared so findOrCreateRoom/getRoom/getUserRooms never drift into
-     * returning a bare row that's missing the computed `otherUser` the
-     * frontend's ChatRoom type (and ChatWindow/ChatRoomList) require.
-     */
     private readonly roomInclude = {
         initiator: {
             select: { id: true, firstName: true, lastName: true, profileImage: true, role: true },
@@ -37,6 +28,7 @@ export class ChatService {
                 images: true,
                 type: true,
                 price: true,
+                sellerId: true,
                 auction: {
                     select: {
                         id: true,
@@ -50,11 +42,7 @@ export class ChatService {
         },
     };
 
-    /** Adds the computed `otherUser` field the frontend actually reads. */
-    private withOtherUser<T extends { initiatorId: string; initiator: unknown; participant: unknown }>(
-        room: T,
-        userId: string,
-    ) {
+    private withOtherUser<T extends { initiatorId: string; initiator: unknown; participant: unknown }>(room: T, userId: string) {
         return {
             ...room,
             otherUser: room.initiatorId === userId ? room.participant : room.initiator,
@@ -62,12 +50,66 @@ export class ChatService {
     }
 
     /**
-     * Find or create a chat room between two users
+     * Auction conversations are part of the paid handover flow, not a public
+     * enquiry channel. For an auction-linked room the exact pair must be the
+     * seller and the winning dealer, and the £125 buyer fee must already be
+     * paid. Retail/classified rooms remain normal buyer/seller conversations.
      */
+    private assertAuctionRoomState(room: any, userId?: string): void {
+        const listing = room?.listing;
+        if (!listing || listing.type !== 'AUCTION') return;
+
+        const auction = listing.auction;
+        if (!auction?.winnerId) {
+            throw new ForbiddenException('Auction chat is not available until a winner has been confirmed.');
+        }
+        if (!auction.buyerFeePaid) {
+            throw new ForbiddenException('The £125 auction buyer fee must be paid before seller chat is available.');
+        }
+
+        const parties = new Set([room.initiatorId, room.participantId]);
+        if (!listing.sellerId || !parties.has(listing.sellerId) || !parties.has(auction.winnerId) || parties.size !== 2) {
+            throw new ForbiddenException('This auction chat is restricted to the seller and winning dealer.');
+        }
+
+        if (userId && userId !== listing.sellerId && userId !== auction.winnerId) {
+            throw new ForbiddenException('This auction chat is restricted to the seller and winning dealer.');
+        }
+    }
+
+    private async assertCanReferenceListing(userId: string, participantId: string, listingId: string): Promise<void> {
+        const listing = await this.prisma.listing.findUnique({
+            where: { id: listingId },
+            select: {
+                sellerId: true,
+                type: true,
+                auction: { select: { winnerId: true, buyerFeePaid: true } },
+            },
+        });
+        if (!listing) throw new NotFoundException('Listing not found');
+        if (listing.type !== 'AUCTION') return;
+
+        if (!listing.auction?.winnerId) {
+            throw new ForbiddenException('Auction chat is not available until a winner has been confirmed.');
+        }
+        if (!listing.auction.buyerFeePaid) {
+            throw new ForbiddenException('The £125 auction buyer fee must be paid before seller chat is available.');
+        }
+
+        const parties = new Set([userId, participantId]);
+        if (!listing.sellerId || !parties.has(listing.sellerId) || !parties.has(listing.auction.winnerId) || parties.size !== 2) {
+            throw new ForbiddenException('Auction chat is restricted to the seller and winning dealer.');
+        }
+    }
+
     async findOrCreateRoom(userId: string, dto: CreateRoomDto) {
         const { participantId, listingId } = dto;
+        if (participantId === userId) throw new ForbiddenException('You cannot start a chat with yourself.');
 
-        // Check if room already exists (either direction)
+        if (listingId) {
+            await this.assertCanReferenceListing(userId, participantId, listingId);
+        }
+
         const existingRoom = await this.prisma.chatRoom.findFirst({
             where: {
                 OR: [
@@ -77,19 +119,6 @@ export class ChatService {
                 deletedAt: null,
             },
         });
-
-        // ChatRoom is unique per (initiatorId, participantId) pair — the same
-        // two users always get the same room, even across unrelated deals on
-        // different vehicles. `listingId` used to be frozen at whatever it
-        // was on the room's very first creation and silently ignored on every
-        // later findOrCreateRoom call, so a buyer/seller pair who transacted
-        // on a second vehicle would still see the first vehicle's title/image
-        // and (worse) have the auction-winner fee gate evaluated against the
-        // wrong, possibly already-settled auction. Re-point the room at the
-        // newly-referenced listing instead of leaving it stuck on the first one.
-        if (listingId) {
-            await this.assertCanReferenceListing(userId, listingId);
-        }
 
         if (existingRoom) {
             const room = (listingId && listingId !== existingRoom.listingId)
@@ -102,81 +131,33 @@ export class ChatService {
                     where: { id: existingRoom.id },
                     include: this.roomInclude,
                 });
+            this.assertAuctionRoomState(room, userId);
             return this.withOtherUser(room, userId);
         }
 
-        // Create new room
         const room = await this.prisma.chatRoom.create({
-            data: {
-                initiatorId: userId,
-                participantId,
-                listingId,
-            },
+            data: { initiatorId: userId, participantId, listingId },
             include: this.roomInclude,
         });
+        this.assertAuctionRoomState(room, userId);
         return this.withOtherUser(room, userId);
     }
 
-    /**
-     * Get or create the current user's conversation with the official
-     * CarMazium support account — the single ADMIN-role user. Reuses
-     * findOrCreateRoom (no listingId) so it's the same unique per-pair room
-     * a direct admin-initiated chat would land on, just resolved without the
-     * caller needing to know the admin's user ID.
-     */
     async findOrCreateSupportRoom(userId: string) {
         const supportAccount = await this.prisma.user.findFirst({
             where: { role: 'ADMIN', deletedAt: null },
             select: { id: true },
             orderBy: { createdAt: 'asc' },
         });
-
-        if (!supportAccount) {
-            throw new NotFoundException('Support is not available right now.');
-        }
-        if (supportAccount.id === userId) {
-            throw new ForbiddenException('You are the support account.');
-        }
-
+        if (!supportAccount) throw new NotFoundException('Support is not available right now.');
+        if (supportAccount.id === userId) throw new ForbiddenException('You are the support account.');
         return this.findOrCreateRoom(userId, { participantId: supportAccount.id });
     }
 
-    /**
-     * Gate auction rooms: the winner must have paid the £125 fee before
-     * chatting about that specific auction. Runs whenever a listingId is
-     * about to be attached to a room — both on first creation and when an
-     * existing room is being re-pointed at a new listing.
-     */
-    private async assertCanReferenceListing(userId: string, listingId: string): Promise<void> {
-        const listing = await this.prisma.listing.findUnique({
-            where: { id: listingId },
-            select: {
-                sellerId: true,
-                type: true,
-                auction: { select: { winnerId: true, buyerFeePaid: true } },
-            },
-        });
-
-        if (listing?.type === 'AUCTION' && listing.auction?.winnerId) {
-            const isWinner = listing.auction.winnerId === userId;
-            if (isWinner && !listing.auction.buyerFeePaid) {
-                throw new ForbiddenException(
-                    'You must pay the £125 completion fee before messaging the seller.',
-                );
-            }
-        }
-    }
-
-    /**
-     * Get all chat rooms for a user with last message preview
-     */
     async getUserRooms(userId: string): Promise<any[]> {
         const rooms = await this.prisma.chatRoom.findMany({
             where: {
-                OR: [
-                    { initiatorId: userId },
-                    { participantId: userId },
-                ],
+                OR: [{ initiatorId: userId }, { participantId: userId }],
                 deletedAt: null,
             },
             include: {
@@ -184,135 +165,81 @@ export class ChatService {
                 messages: {
                     orderBy: { createdAt: 'desc' },
                     take: 1,
-                    select: {
-                        id: true,
-                        content: true,
-                        senderId: true,
-                        isRead: true,
-                        createdAt: true,
-                    },
+                    select: { id: true, content: true, senderId: true, isRead: true, createdAt: true },
                 },
             },
             orderBy: { updatedAt: 'desc' },
         });
 
-        // Add unread count and format response
-        return Promise.all(
-            rooms.map(async (room) => {
-                const unreadCount = await this.prisma.message.count({
-                    where: {
-                        chatRoomId: room.id,
-                        senderId: { not: userId },
-                        isRead: false,
-                        deletedAt: null,
-                    },
-                });
+        const accessible = rooms.filter((room: any) => {
+            try { this.assertAuctionRoomState(room, userId); return true; }
+            catch { return false; }
+        });
 
-                const { otherUser } = this.withOtherUser(room, userId);
-
-                return {
-                    id: room.id,
-                    otherUser,
-                    listing: room.listing,
-                    lastMessage: room.messages[0] || null,
-                    unreadCount,
-                    updatedAt: room.updatedAt,
-                };
-            })
-        );
+        return Promise.all(accessible.map(async (room) => {
+            const unreadCount = await this.prisma.message.count({
+                where: {
+                    chatRoomId: room.id,
+                    senderId: { not: userId },
+                    isRead: false,
+                    deletedAt: null,
+                },
+            });
+            const { otherUser } = this.withOtherUser(room, userId);
+            return {
+                id: room.id,
+                otherUser,
+                listing: room.listing,
+                lastMessage: room.messages[0] || null,
+                unreadCount,
+                updatedAt: room.updatedAt,
+            };
+        }));
     }
 
-    /**
-     * Get a single room with authorization check
-     */
     async getRoom(roomId: string, userId: string) {
         const room = await this.prisma.chatRoom.findUnique({
             where: { id: roomId },
             include: this.roomInclude,
         });
-
-        if (!room || room.deletedAt) {
-            throw new NotFoundException('Chat room not found');
-        }
-
+        if (!room || room.deletedAt) throw new NotFoundException('Chat room not found');
         if (room.initiatorId !== userId && room.participantId !== userId) {
             throw new ForbiddenException('You are not a member of this chat room');
         }
-
+        this.assertAuctionRoomState(room, userId);
         return this.withOtherUser(room, userId);
     }
 
-    /**
-     * Get paginated messages for a room
-     */
-    async getRoomMessages(
-        roomId: string,
-        userId: string,
-        page = 1,
-        limit = 50,
-    ): Promise<{ data: Message[]; total: number }> {
-        // Verify user is member of room
+    async getRoomMessages(roomId: string, userId: string, page = 1, limit = 50): Promise<{ data: Message[]; total: number }> {
         await this.getRoom(roomId, userId);
-
         const skip = (page - 1) * limit;
-
         const [messages, total] = await Promise.all([
             this.prisma.message.findMany({
                 where: { chatRoomId: roomId, deletedAt: null },
-                include: {
-                    sender: {
-                        select: { id: true, firstName: true, lastName: true, profileImage: true },
-                    },
-                },
+                include: { sender: { select: { id: true, firstName: true, lastName: true, profileImage: true } } },
                 orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit,
             }),
-            this.prisma.message.count({
-                where: { chatRoomId: roomId, deletedAt: null },
-            }),
+            this.prisma.message.count({ where: { chatRoomId: roomId, deletedAt: null } }),
         ]);
-
         return { data: messages.reverse(), total };
     }
 
-    /**
-     * Send a message to a room
-     */
     async sendMessage(roomId: string, senderId: string, dto: SendMessageDto): Promise<Message> {
-        // Verify user is member of room
         await this.getRoom(roomId, senderId);
-
-        // Create message
         const message = await this.prisma.message.create({
-            data: {
-                chatRoomId: roomId,
-                senderId,
-                content: dto.content,
-            },
-            include: {
-                sender: {
-                    select: { id: true, firstName: true, lastName: true, profileImage: true },
-                },
-            },
+            data: { chatRoomId: roomId, senderId, content: dto.content },
+            include: { sender: { select: { id: true, firstName: true, lastName: true, profileImage: true } } },
         });
+        await this.prisma.chatRoom.update({ where: { id: roomId }, data: { updatedAt: new Date() } });
 
-        // Update room's updatedAt timestamp
-        await this.prisma.chatRoom.update({
-            where: { id: roomId },
-            data: { updatedAt: new Date() },
-        });
-
-        // NOTIFICATION LOGIC
-        // Determine recipient
         const room = await this.prisma.chatRoom.findUnique({
             where: { id: roomId },
             select: { initiatorId: true, participantId: true },
         });
-
         if (room) {
             const recipientId = room.initiatorId === senderId ? room.participantId : room.initiatorId;
-
             try {
                 const notification = await this.notificationsService.create({
                     userId: recipientId,
@@ -323,53 +250,48 @@ export class ChatService {
                     data: { roomId, messageId: message.id },
                 });
                 this.notificationsGateway.sendNotification(recipientId, notification);
-            } catch (notifErr) {
-                // Non-fatal: message already saved and broadcast via chat gateway
+            } catch (notifErr: any) {
                 console.warn(`[ChatService] Failed to send message notification: ${notifErr?.message}`);
             }
         }
-
         return message;
     }
 
-    /**
-     * Mark messages as read
-     */
     async markMessagesAsRead(roomId: string, userId: string): Promise<number> {
-        // Verify user is member of room
         await this.getRoom(roomId, userId);
-
-        // Mark all messages from other user as read
         const result = await this.prisma.message.updateMany({
-            where: {
-                chatRoomId: roomId,
-                senderId: { not: userId },
-                isRead: false,
-            },
+            where: { chatRoomId: roomId, senderId: { not: userId }, isRead: false },
             data: { isRead: true },
         });
-
         return result.count;
     }
 
-    /**
-     * Get total unread message count for a user
-     */
-    async getUnreadCount(userId: string): Promise<number> {
-        // Get all rooms where user is a member
+    private async accessibleRoomIds(userId: string): Promise<string[]> {
         const rooms = await this.prisma.chatRoom.findMany({
             where: {
-                OR: [
-                    { initiatorId: userId },
-                    { participantId: userId },
-                ],
+                OR: [{ initiatorId: userId }, { participantId: userId }],
                 deletedAt: null,
             },
-            select: { id: true },
+            include: {
+                listing: {
+                    select: {
+                        id: true,
+                        type: true,
+                        sellerId: true,
+                        auction: { select: { winnerId: true, buyerFeePaid: true } },
+                    },
+                },
+            },
         });
+        return rooms.filter((room: any) => {
+            try { this.assertAuctionRoomState(room, userId); return true; }
+            catch { return false; }
+        }).map((room) => room.id);
+    }
 
-        const roomIds = rooms.map((r) => r.id);
-
+    async getUnreadCount(userId: string): Promise<number> {
+        const roomIds = await this.accessibleRoomIds(userId);
+        if (roomIds.length === 0) return 0;
         return this.prisma.message.count({
             where: {
                 chatRoomId: { in: roomIds },
@@ -380,21 +302,7 @@ export class ChatService {
         });
     }
 
-    /**
-     * Get room IDs for a user (for WebSocket room joining)
-     */
     async getUserRoomIds(userId: string): Promise<string[]> {
-        const rooms = await this.prisma.chatRoom.findMany({
-            where: {
-                OR: [
-                    { initiatorId: userId },
-                    { participantId: userId },
-                ],
-                deletedAt: null,
-            },
-            select: { id: true },
-        });
-
-        return rooms.map((r) => r.id);
+        return this.accessibleRoomIds(userId);
     }
 }
