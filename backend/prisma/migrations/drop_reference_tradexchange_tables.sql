@@ -1,36 +1,95 @@
--- Removes the nine AI-drafted tradexchange_* reference tables.
+-- Legacy Trade Exchange reference cleanup — FAIL CLOSED.
 --
--- These were created directly in Supabase as a REFERENCE for how the Trade
--- Exchange services should look, not as a system. They were confirmed empty
--- on 2026-09-11, they have no Prisma models, no code reads them, and the real
--- design now lives in service_marketplace_phase0.sql under Prisma's control.
+-- IMPORTANT (verified 2026-09-11): the nine tables below currently contain
+-- zero rows, BUT the production schema also has later Trade Exchange objects.
+-- In particular, tradexchange_disputes and tradexchange_job_events have foreign
+-- keys into tradexchange_jobs, and tradexchange_job_events also references
+-- tradexchange_team_members. A blind DROP ... CASCADE would therefore strip
+-- live schema relationships even though the nine target tables are empty.
 --
--- CASCADE is required because the RLS policies on tradexchange_offers,
--- tradexchange_payments and tradexchange_transactions depend on
--- tradexchange_jobs — the same dependency that stopped the 2026-09-10 deploy
--- from dropping them by accident.
+-- This file is intentionally guarded. It will refuse to drop anything while:
+--   1) any target table contains rows, OR
+--   2) any foreign key from a non-target table still depends on a target table.
 --
--- Run the check first. If ANY count is non-zero, STOP and do not run the drop.
---
---   SELECT 'jobs' t, count(*) FROM tradexchange_jobs
---   UNION ALL SELECT 'offers', count(*) FROM tradexchange_offers
---   UNION ALL SELECT 'payments', count(*) FROM tradexchange_payments
---   UNION ALL SELECT 'transactions', count(*) FROM tradexchange_transactions
---   UNION ALL SELECT 'lead_recipients', count(*) FROM tradexchange_lead_recipients
---   UNION ALL SELECT 'provider_accounts', count(*) FROM tradexchange_provider_accounts
---   UNION ALL SELECT 'service_capabilities', count(*) FROM tradexchange_service_capabilities
---   UNION ALL SELECT 'team_members', count(*) FROM tradexchange_team_members
---   UNION ALL SELECT 'team_permissions', count(*) FROM tradexchange_team_permissions;
---
--- Then:
---   psql "$DIRECT_URL" -f prisma/migrations/drop_reference_tradexchange_tables.sql
+-- Do not weaken these guards. The old Trade Exchange runtime must be retired as
+-- one coherent migration after all dependent tables/functions/policies have
+-- been audited. The current Prisma service marketplace can coexist meanwhile.
 
-DROP TABLE IF EXISTS tradexchange_team_permissions CASCADE;
-DROP TABLE IF EXISTS tradexchange_team_members CASCADE;
-DROP TABLE IF EXISTS tradexchange_transactions CASCADE;
-DROP TABLE IF EXISTS tradexchange_payments CASCADE;
-DROP TABLE IF EXISTS tradexchange_offers CASCADE;
-DROP TABLE IF EXISTS tradexchange_lead_recipients CASCADE;
-DROP TABLE IF EXISTS tradexchange_service_capabilities CASCADE;
-DROP TABLE IF EXISTS tradexchange_provider_accounts CASCADE;
-DROP TABLE IF EXISTS tradexchange_jobs CASCADE;
+DO $$
+DECLARE
+    nonempty_tables text;
+    external_dependencies text;
+BEGIN
+    SELECT string_agg(table_name, ', ' ORDER BY table_name)
+    INTO nonempty_tables
+    FROM (
+        SELECT 'tradexchange_jobs' AS table_name WHERE EXISTS (SELECT 1 FROM public.tradexchange_jobs LIMIT 1)
+        UNION ALL SELECT 'tradexchange_offers' WHERE EXISTS (SELECT 1 FROM public.tradexchange_offers LIMIT 1)
+        UNION ALL SELECT 'tradexchange_payments' WHERE EXISTS (SELECT 1 FROM public.tradexchange_payments LIMIT 1)
+        UNION ALL SELECT 'tradexchange_transactions' WHERE EXISTS (SELECT 1 FROM public.tradexchange_transactions LIMIT 1)
+        UNION ALL SELECT 'tradexchange_lead_recipients' WHERE EXISTS (SELECT 1 FROM public.tradexchange_lead_recipients LIMIT 1)
+        UNION ALL SELECT 'tradexchange_provider_accounts' WHERE EXISTS (SELECT 1 FROM public.tradexchange_provider_accounts LIMIT 1)
+        UNION ALL SELECT 'tradexchange_service_capabilities' WHERE EXISTS (SELECT 1 FROM public.tradexchange_service_capabilities LIMIT 1)
+        UNION ALL SELECT 'tradexchange_team_members' WHERE EXISTS (SELECT 1 FROM public.tradexchange_team_members LIMIT 1)
+        UNION ALL SELECT 'tradexchange_team_permissions' WHERE EXISTS (SELECT 1 FROM public.tradexchange_team_permissions LIMIT 1)
+    ) s;
+
+    IF nonempty_tables IS NOT NULL THEN
+        RAISE EXCEPTION 'Legacy Trade Exchange cleanup aborted: non-empty target tables: %', nonempty_tables;
+    END IF;
+
+    WITH target_oids AS (
+        SELECT c.oid
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND c.relname IN (
+              'tradexchange_jobs',
+              'tradexchange_offers',
+              'tradexchange_payments',
+              'tradexchange_transactions',
+              'tradexchange_lead_recipients',
+              'tradexchange_provider_accounts',
+              'tradexchange_service_capabilities',
+              'tradexchange_team_members',
+              'tradexchange_team_permissions'
+          )
+    ), target_names AS (
+        SELECT unnest(ARRAY[
+            'tradexchange_jobs',
+            'tradexchange_offers',
+            'tradexchange_payments',
+            'tradexchange_transactions',
+            'tradexchange_lead_recipients',
+            'tradexchange_provider_accounts',
+            'tradexchange_service_capabilities',
+            'tradexchange_team_members',
+            'tradexchange_team_permissions'
+        ]) AS name
+    )
+    SELECT string_agg(
+        format('%s -> %s (%s)', con.conrelid::regclass::text, con.confrelid::regclass::text, con.conname),
+        ', ' ORDER BY con.conrelid::regclass::text, con.conname
+    )
+    INTO external_dependencies
+    FROM pg_constraint con
+    WHERE con.contype = 'f'
+      AND con.confrelid IN (SELECT oid FROM target_oids)
+      AND split_part(con.conrelid::regclass::text, '.', 2) NOT IN (SELECT name FROM target_names)
+      AND con.conrelid::regclass::text NOT IN (SELECT name FROM target_names);
+
+    IF external_dependencies IS NOT NULL THEN
+        RAISE EXCEPTION 'Legacy Trade Exchange cleanup aborted: dependent foreign keys still exist: %', external_dependencies;
+    END IF;
+END $$;
+
+-- These statements are reached only after both safety checks pass.
+DROP TABLE IF EXISTS public.tradexchange_team_permissions;
+DROP TABLE IF EXISTS public.tradexchange_team_members;
+DROP TABLE IF EXISTS public.tradexchange_transactions;
+DROP TABLE IF EXISTS public.tradexchange_payments;
+DROP TABLE IF EXISTS public.tradexchange_offers;
+DROP TABLE IF EXISTS public.tradexchange_lead_recipients;
+DROP TABLE IF EXISTS public.tradexchange_service_capabilities;
+DROP TABLE IF EXISTS public.tradexchange_provider_accounts;
+DROP TABLE IF EXISTS public.tradexchange_jobs;
