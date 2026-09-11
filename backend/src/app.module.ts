@@ -34,6 +34,7 @@ import { EmailModule } from './email/email.module';
 import { DamageAnalysisModule } from './damage/damage.module';
 import { HpiModule } from './hpi/hpi.module';
 import { DeliveryModule } from './delivery/delivery.module';
+import { ServicesModule } from './services/services.module';
 import { MarketingModule } from './marketing/marketing.module';
 import { BlogModule } from './blog/blog.module';
 
@@ -76,6 +77,7 @@ import { BlogModule } from './blog/blog.module';
     DamageAnalysisModule,
     HpiModule,
     DeliveryModule,
+    ServicesModule,
     MarketingModule,
     BlogModule,
   ],
