@@ -1,23 +1,23 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, Min, IsOptional, IsString, Length, IsIn, ValidateIf } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsString, Length, Min, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateCheckoutSessionDto {
-    @ApiProperty({ description: 'Listing ID to purchase' })
+    @ApiProperty({ description: 'Auction listing ID' })
     @IsString()
     listingId: string;
 
-    @ApiProperty({ description: 'Amount in GBP (e.g. 500.00 for a deposit, or full price)', minimum: 1 })
+    @ApiProperty({ description: 'Client display amount. The server always derives the £125 auction buyer fee.', minimum: 1 })
     @IsNumber()
     @Min(1)
     @Type(() => Number)
     amount: number;
 
-    @ApiPropertyOptional({ description: 'Payment type', default: 'FULL_PAYMENT' })
+    @ApiPropertyOptional({ description: 'This checkout endpoint is only for the auction buyer fee', default: 'COMMISSION' })
     @IsOptional()
     @IsString()
-    @IsIn(['DEPOSIT', 'FULL_PAYMENT', 'COMMISSION'])
-    type?: 'DEPOSIT' | 'FULL_PAYMENT' | 'COMMISSION';
+    @IsIn(['COMMISSION'])
+    type?: 'COMMISSION';
 
     @ApiPropertyOptional({ description: 'ISO 4217 currency code', default: 'gbp' })
     @IsOptional()
@@ -26,26 +26,25 @@ export class CreateCheckoutSessionDto {
     currency?: string;
 }
 
-// Keep backward-compatible export name
 export { CreateCheckoutSessionDto as CreatePaymentIntentDto };
 
-/** DTO for the Payment Sheet flow (native SDK) */
+/** DTO for the native Payment Sheet flow. Vehicle sale funds never pass through CarMazium. */
 export class CreatePaymentSheetDto {
     @ApiProperty({ description: 'Listing ID' })
     @IsString()
     listingId: string;
 
-    @ApiProperty({ description: 'Amount in GBP', minimum: 1 })
+    @ApiProperty({ description: 'Client display amount in GBP. The backend derives authoritative platform/service amounts.', minimum: 1 })
     @IsNumber()
     @Min(1)
     @Type(() => Number)
     amount: number;
 
-    @ApiPropertyOptional({ description: 'Payment type', default: 'FULL_PAYMENT' })
+    @ApiPropertyOptional({ description: 'Allowed platform payment type', default: 'COMMISSION' })
     @IsOptional()
     @IsString()
-    @IsIn(['DEPOSIT', 'FULL_PAYMENT', 'COMMISSION', 'LISTING_FEE', 'HPI_REPORT', 'HPI_REPORT_EMAIL'])
-    type?: 'DEPOSIT' | 'FULL_PAYMENT' | 'COMMISSION' | 'LISTING_FEE' | 'HPI_REPORT' | 'HPI_REPORT_EMAIL';
+    @IsIn(['COMMISSION', 'LISTING_FEE', 'HPI_REPORT', 'HPI_REPORT_EMAIL'])
+    type?: 'COMMISSION' | 'LISTING_FEE' | 'HPI_REPORT' | 'HPI_REPORT_EMAIL';
 
     @ApiPropertyOptional({ description: 'ISO 4217 currency code', default: 'gbp' })
     @IsOptional()
@@ -54,14 +53,14 @@ export class CreatePaymentSheetDto {
     currency?: string;
 
     @ApiPropertyOptional({
-        description: 'Listing badge tier — required when type is LISTING_FEE so the webhook knows which tier to activate the listing at',
+        description: 'Listing badge tier — required when type is LISTING_FEE',
     })
     @ValidateIf((o) => o.type === 'LISTING_FEE')
     @IsIn(['BASIC', 'STANDARD', 'PREMIUM'])
     badgeTier?: 'BASIC' | 'STANDARD' | 'PREMIUM';
 
     @ApiPropertyOptional({
-        description: 'Vehicle registration mark — required when type is HPI_REPORT so the webhook knows which VRM to run the check against',
+        description: 'Vehicle registration mark — required when type is HPI_REPORT',
     })
     @ValidateIf((o) => o.type === 'HPI_REPORT')
     @IsString()
