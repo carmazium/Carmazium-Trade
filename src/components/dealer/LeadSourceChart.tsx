@@ -40,13 +40,12 @@ export function LeadSourceChart({ data, title = "Lead Sources" }: Props) {
     const circumference = 2 * Math.PI * radius
     const center = size / 2
 
-    let cumulativeOffset = 0
-    const arcs = data.map(row => {
+    const arcs = data.map((row, index) => {
         const color = SOURCE_COLORS[row.source] ?? "#6b7280"
         const pct = total > 0 ? row.count / total : 0
+        const previousCount = data.slice(0, index).reduce((sum, item) => sum + item.count, 0)
         const dashLength = pct * circumference
-        const dashOffset = circumference - cumulativeOffset
-        cumulativeOffset += dashLength
+        const dashOffset = circumference - (total > 0 ? (previousCount / total) * circumference : 0)
         return { ...row, color, pct, dashLength, dashOffset }
     })
 

@@ -50,23 +50,23 @@ export function OfferDonutChart({
         )
     }
 
-    const total = SEGMENTS.reduce((sum, s) => sum + (data[s.key as keyof typeof data] as number || 0), 0)
+    const total = SEGMENTS.reduce((sum, s) => sum + (data[s.key] || 0), 0)
     const convRate = total > 0 ? Math.round((data.ACCEPTED / total) * 100) : 0
 
-    // SVG donut
     const size = 180
     const strokeWidth = 28
     const radius = (size - strokeWidth) / 2
     const circumference = 2 * Math.PI * radius
     const center = size / 2
 
-    let cumulativeOffset = 0
-    const arcs = SEGMENTS.map((seg) => {
-        const count = data[seg.key as keyof typeof data] as number || 0
+    const arcs = SEGMENTS.map((seg, index) => {
+        const count = data[seg.key] || 0
+        const previousCount = SEGMENTS
+            .slice(0, index)
+            .reduce((sum, previous) => sum + (data[previous.key] || 0), 0)
         const pct = total > 0 ? count / total : 0
         const dashLength = pct * circumference
-        const dashOffset = circumference - cumulativeOffset
-        cumulativeOffset += dashLength
+        const dashOffset = circumference - (total > 0 ? (previousCount / total) * circumference : 0)
 
         return {
             ...seg,
@@ -88,10 +88,8 @@ export function OfferDonutChart({
             <h3 className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] mb-6">{title}</h3>
 
             <div className="flex flex-col items-center">
-                {/* Donut */}
                 <div className="relative">
                     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-                        {/* Background ring */}
                         <circle
                             cx={center}
                             cy={center}
@@ -100,7 +98,6 @@ export function OfferDonutChart({
                             stroke="rgba(255,255,255,0.03)"
                             strokeWidth={strokeWidth}
                         />
-                        {/* Segments */}
                         {arcs.map((arc) => (
                             <circle
                                 key={arc.key}
@@ -122,7 +119,6 @@ export function OfferDonutChart({
                         ))}
                     </svg>
 
-                    {/* Center text */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                         <span className="text-3xl font-black metallic-foil leading-none">{total}</span>
                         <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] mt-1">Total Offers</span>
@@ -133,7 +129,6 @@ export function OfferDonutChart({
                     </div>
                 </div>
 
-                {/* Legend */}
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-5 w-full">
                     {arcs.map((arc) => (
                         <div
@@ -156,7 +151,6 @@ export function OfferDonutChart({
                     ))}
                 </div>
 
-                {/* Avg Stats */}
                 <div className="flex items-center gap-4 mt-5 pt-5 border-t border-[var(--border-default)] w-full">
                     <div className="flex-1 text-center">
                         <p className="text-lg font-black leading-none" style={{ color: 'var(--text-primary)' }}>{formatCurrency(data.avgAcceptedAmount)}</p>

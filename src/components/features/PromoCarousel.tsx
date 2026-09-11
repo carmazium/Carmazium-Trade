@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/Button"
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 
 const slides = [
     {
@@ -39,7 +39,7 @@ const slides = [
     },
     {
         id: 3,
-        type: "image", // Using an image for service hub for now
+        type: "image",
         src: "/assets/images/featured-sports.png",
         subtitle: "SERVICE HUB",
         title: (
@@ -57,14 +57,6 @@ export function PromoCarousel() {
     const [current, setCurrent] = useState(0)
     const [direction, setDirection] = useState(0)
 
-    // Auto-advance
-    useEffect(() => {
-        const timer = setInterval(() => {
-            nextSlide()
-        }, 8000)
-        return () => clearInterval(timer)
-    }, [current])
-
     const nextSlide = () => {
         setDirection(1)
         setCurrent((prev) => (prev + 1) % slides.length)
@@ -74,6 +66,14 @@ export function PromoCarousel() {
         setDirection(-1)
         setCurrent((prev) => (prev === 0 ? slides.length - 1 : prev - 1))
     }
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setDirection(1)
+            setCurrent((prev) => (prev + 1) % slides.length)
+        }, 8000)
+        return () => clearInterval(timer)
+    }, [])
 
     const variants = {
         enter: (direction: number) => ({
@@ -96,7 +96,6 @@ export function PromoCarousel() {
 
             <div className="container mx-auto px-5 relative z-10 h-full">
                 <div className="relative h-full flex items-center">
-                    {/* Navigation Buttons - Absolute positioned or side-by-side depending on mobile */}
                     <button
                         onClick={prevSlide}
                         className="absolute left-0 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-[var(--bg-card)] hover:bg-primary/20 hover:text-primary transition-all backdrop-blur-md hidden md:block"
@@ -125,9 +124,7 @@ export function PromoCarousel() {
                                 transition={{ duration: 0.5, ease: "easeInOut" }}
                                 className="flex flex-col md:flex-row items-center gap-12 md:gap-20"
                             >
-                                {/* Media Side */}
                                 <div className="flex-1 relative w-full">
-                                    {/* Glow effect */}
                                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-[var(--bg-card)] blur-[120px] rounded-full -z-10" />
 
                                     <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-[var(--border-default)] group aspect-video bg-[var(--bg-input)]">
@@ -156,7 +153,6 @@ export function PromoCarousel() {
                                     </div>
                                 </div>
 
-                                {/* Text Side */}
                                 <div className="flex-1 text-left">
                                     <motion.div
                                         initial={{ opacity: 0, x: 50 }}
@@ -182,7 +178,6 @@ export function PromoCarousel() {
                         </AnimatePresence>
                     </div>
 
-                    {/* Dots Indicators */}
                     <div className="absolute bottom-[-50px] left-1/2 -translate-x-1/2 flex gap-3">
                         {slides.map((_, idx) => (
                             <button
