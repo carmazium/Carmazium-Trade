@@ -19,40 +19,19 @@ async function bootstrap() {
     rawBody: true,
   });
 
-  // ---------------------------------------------------------------------------
-  // WebSocket Redis Adapter (Scalability)
-  // ---------------------------------------------------------------------------
   const redisIoAdapter = new RedisIoAdapter(app);
   await redisIoAdapter.connectToRedis();
   app.useWebSocketAdapter(redisIoAdapter);
 
-  // ---------------------------------------------------------------------------
-  // CORS — allow frontend origins with credentials (cookies)
-  // Production (Vercel): set ALLOWED_ORIGINS=https://carmazium.vercel.app,https://yourdomain.com
-  // ---------------------------------------------------------------------------
-  // Shared with the WebSocket gateways — see core/allowed-origins.ts. They
-  // used to keep their own copies of this list and drifted out of sync.
   const allowedOrigins = getAllowedOrigins();
-  app.enableCors({
-    origin: allowedOrigins,
-    credentials: true,
-  });
-
-  // ---------------------------------------------------------------------------
-  // Trust proxy so secure cookies work behind reverse proxies (Render, etc.)
-  // ---------------------------------------------------------------------------
+  app.enableCors({ origin: allowedOrigins, credentials: true });
   app.set('trust proxy', 1);
 
-  // ---------------------------------------------------------------------------
-  // Session middleware — PostgreSQL-backed session store
-  // Production (Render): set SESSION_SECRET and ensure NODE_ENV=production
-  // so cookie is Secure + SameSite=None for cross-origin (Vercel → Render).
-  // ---------------------------------------------------------------------------
   const PgSession = pgConnect(session);
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   if (!process.env.DATABASE_URL) {
-    console.error('❌ DATABASE_URL is not set — session store will fail to initialize');
+    console.error('DATABASE_URL is not set — session store will fail to initialize');
     process.exit(1);
   }
 
@@ -75,63 +54,51 @@ async function bootstrap() {
         httpOnly: true,
         secure: isProduction,
         sameSite: isProduction ? 'none' : 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       },
     }),
   );
 
-  // ---------------------------------------------------------------------------
-  // Session user hydration middleware
-  // Populates req.user from the session on every request so that
-  // @CurrentUser() and RolesGuard work seamlessly.
-  // ---------------------------------------------------------------------------
+  // Revalidate the authenticated account against the database on every request.
+  // Do not trust a cached user/role stored in the session for days: a dealer can
+  // be suspended, an admin can change a role, or an account can be deleted while
+  // the browser still owns a valid session cookie. userId is the only durable
+  // session identity; the current role/profile is always loaded fresh.
   const authService = app.get(AuthService);
-
   app.use(async (req: any, _res: any, next: any) => {
-    if (req.session?.userId && !req.user) {
-      if (req.session.cachedUser) {
-        // Use the user object cached in the session store — no extra DB query needed
-        req.user = req.session.cachedUser;
-      } else {
-        // Fallback for existing sessions that pre-date this optimisation
-        const user = await authService.validateSession(req.session.userId);
-        if (user) {
-          req.user = user;
-          req.session.cachedUser = user;
-        } else {
-          // Session references a deleted/invalid user — clear it
-          req.session.destroy(() => { });
-        }
+    if (!req.session?.userId || req.user) return next();
+
+    try {
+      const user = await authService.validateSession(req.session.userId);
+      if (!user) {
+        req.session.destroy(() => { });
+        return next();
       }
+
+      req.user = user;
+      // Keep compatibility with older code that reads these fields, but update
+      // them from the database rather than accepting their previous values.
+      req.session.userRole = user.role;
+      req.session.cachedUser = user;
+      return next();
+    } catch (error) {
+      console.error('Session hydration failed:', error);
+      return next();
     }
-    next();
   });
 
-  // ---------------------------------------------------------------------------
-  // Global validation pipe for DTOs
-  // ---------------------------------------------------------------------------
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
+      transformOptions: { enableImplicitConversion: true },
     }),
   );
 
-  // ---------------------------------------------------------------------------
-  // Security: Helmet & Global Exception Filter
-  // ---------------------------------------------------------------------------
   app.use(helmet());
-
-  const { httpAdapter } = app.get(HttpAdapterHost);
   app.useGlobalFilters(new AllExceptionsFilter(app.get(HttpAdapterHost)));
 
-  // ---------------------------------------------------------------------------
-  // Swagger configuration
-  // ---------------------------------------------------------------------------
   const config = new DocumentBuilder()
     .setTitle('Carmazium API')
     .setDescription('Core Marketplace Engine API for Carmazium')
@@ -150,24 +117,18 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  // ---------------------------------------------------------------------------
-  // Start server
-  // ---------------------------------------------------------------------------
   const port = process.env.PORT ?? 8080;
   await app.listen(port, '0.0.0.0');
 
-  // Graceful shutdown: close Redis adapter connections when present
   const shutdown = async () => {
-    if (typeof redisIoAdapter.close === 'function') {
-      await redisIoAdapter.close();
-    }
+    if (typeof redisIoAdapter.close === 'function') await redisIoAdapter.close();
     process.exit(0);
   };
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
 
-  console.log(`🚀 Server running on http://localhost:${port}`);
-  console.log(`📚 Swagger docs available at http://localhost:${port}/api`);
+  console.log(`Server running on http://localhost:${port}`);
+  console.log(`Swagger docs available at http://localhost:${port}/api`);
 }
 
 bootstrap();
