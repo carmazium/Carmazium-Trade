@@ -8,6 +8,19 @@ import { UpdateInsuranceStatusDto } from './dto/update-insurance-status.dto';
 export class InsuranceService {
     constructor(private readonly prisma: PrismaService) { }
 
+    async listProviders() {
+        return this.prisma.partnerProfile.findMany({
+            where: {
+                partnerType: 'INSURANCE_PARTNER',
+                isActive: true,
+                deletedAt: null,
+                insuranceUserId: { not: null },
+            },
+            select: { id: true, companyName: true },
+            orderBy: { companyName: 'asc' },
+        });
+    }
+
     async create(userId: string, dto: CreateInsuranceQuoteDto) {
         const [listing, partner] = await Promise.all([
             this.prisma.listing.findUnique({
