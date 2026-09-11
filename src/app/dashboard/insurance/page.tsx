@@ -42,7 +42,7 @@ export default function InsuranceDashboard() {
         if (!authLoading && user) fetchData()
     }, [user, authLoading])
 
-    const handleStatusUpdate = async (id: string, status: string) => {
+    const handleStatusUpdate = async (id: string, status: Parameters<typeof updateInsuranceStatus>[1]) => {
         try {
             setUpdating(id)
             const updated = await updateInsuranceStatus(id, status)
