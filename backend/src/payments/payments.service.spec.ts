@@ -1,27 +1,28 @@
-// ─── Stripe mock (module-level, must be before all imports) ─────────────────
 const mockPaymentIntentsCreate = jest.fn();
 const mockCustomersCreate = jest.fn();
 const mockEphemeralKeysCreate = jest.fn();
-const mockConstructEvent = jest.fn();
 const mockCheckoutSessionsCreate = jest.fn();
+const mockCheckoutSessionsRetrieve = jest.fn();
+const mockRefundsCreate = jest.fn();
+const mockConstructEvent = jest.fn();
 
 jest.mock('stripe', () => {
     const MockStripe = jest.fn().mockImplementation(() => ({
         paymentIntents: { create: mockPaymentIntentsCreate },
         customers: { create: mockCustomersCreate },
         ephemeralKeys: { create: mockEphemeralKeysCreate },
+        checkout: { sessions: { create: mockCheckoutSessionsCreate, retrieve: mockCheckoutSessionsRetrieve } },
+        refunds: { create: mockRefundsCreate },
         webhooks: { constructEvent: mockConstructEvent },
-        checkout: { sessions: { create: mockCheckoutSessionsCreate } },
+        transfers: { create: jest.fn() },
     }));
-    // `payments.service.ts` loads Stripe via a dynamic `await import('stripe')`
-    // (unlike dealers.service.ts's static import) — __esModule: true is required
-    // here so TS's dynamic-import interop unwraps `.default` to MockStripe itself
-    // instead of double-wrapping it.
     return { __esModule: true, default: MockStripe };
 });
 
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { ModuleRef } from '@nestjs/core';
 import { PaymentsService } from './payments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { HpiService } from '../hpi/hpi.service';
@@ -29,259 +30,243 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { EmailService } from '../email/email.service';
 
-function buildPrismaMock() {
+function prismaMock() {
     return {
-        listing: {
-            findUnique: jest.fn(),
-            update: jest.fn(),
-        },
+        listing: { findUnique: jest.fn(), update: jest.fn() },
         user: {
-            findUnique: jest.fn().mockResolvedValue({ id: 'user-1', email: 'buyer@example.com', stripeCustomerId: 'cus_existing' }),
+            findUnique: jest.fn().mockResolvedValue({
+                id: 'winner-1', email: 'winner@example.com', stripeCustomerId: 'cus_1', firstName: 'Win', lastName: 'Ner',
+            }),
             update: jest.fn(),
+            updateMany: jest.fn(),
+            findMany: jest.fn().mockResolvedValue([]),
         },
+        auction: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
         transaction: {
             create: jest.fn().mockResolvedValue({ id: 'txn-1' }),
             update: jest.fn(),
-        },
-        sale: {
-            findFirst: jest.fn().mockResolvedValue(null),
-            create: jest.fn(),
-        },
-        auction: {
+            findUnique: jest.fn(),
             findFirst: jest.fn(),
-            update: jest.fn(),
+            findMany: jest.fn(),
         },
-        $transaction: jest.fn((arg) => (Array.isArray(arg) ? Promise.all(arg) : arg(prismaTxProxy))),
-    };
+        sale: { findFirst: jest.fn(), create: jest.fn() },
+        dealerKyc: { findUnique: jest.fn(), findFirst: jest.fn() },
+        hpiReport: { findUnique: jest.fn() },
+        hpiReportEmailRequest: { findFirst: jest.fn() },
+        featuredBoost: { update: jest.fn() },
+        $transaction: jest.fn(async (arg: any) => Array.isArray(arg) ? Promise.all(arg) : arg({})),
+    } as any;
 }
 
-// Used only by the $transaction((tx) => ...) callback form — mirror the same mock shape.
-let prismaTxProxy: any;
-
-function buildModule(prisma: any) {
-    prismaTxProxy = prisma;
-    return Test.createTestingModule({
+async function build(prisma: any): Promise<PaymentsService> {
+    const module: TestingModule = await Test.createTestingModule({
         providers: [
             PaymentsService,
             { provide: PrismaService, useValue: prisma },
-            { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('sk_test_mock') } },
-            { provide: HpiService, useValue: { createPendingReport: jest.fn() } },
+            {
+                provide: ConfigService,
+                useValue: {
+                    get: (key: string) => ({
+                        STRIPE_SECRET_KEY: 'sk_test_mock',
+                        STRIPE_PUBLISHABLE_KEY: 'pk_test_mock',
+                        STRIPE_WEBHOOK_SECRET: 'whsec_mock',
+                        FRONTEND_URL: 'https://www.carmazium.com',
+                    } as Record<string, string>)[key],
+                },
+            },
+            { provide: HpiService, useValue: { createPendingReport: jest.fn(), requestEmailDelivery: jest.fn() } },
             { provide: NotificationsService, useValue: { create: jest.fn().mockResolvedValue(null) } },
             { provide: NotificationsGateway, useValue: { sendNotification: jest.fn() } },
-            { provide: EmailService, useValue: {} },
+            { provide: EmailService, useValue: { sendKycSubmissionAdminAlert: jest.fn() } },
+            { provide: ModuleRef, useValue: { get: jest.fn() } },
         ],
     }).compile();
+    return module.get(PaymentsService);
 }
 
-describe('PaymentsService — createPaymentSheet (LISTING_FEE)', () => {
-    let service: PaymentsService;
-    let prisma: any;
+const LISTING = {
+    id: 'listing-1',
+    title: 'BMW M3',
+    slug: 'bmw-m3',
+    price: 30000,
+    images: [],
+    deletedAt: null,
+};
 
-    beforeEach(async () => {
-        mockPaymentIntentsCreate.mockReset();
-        mockCustomersCreate.mockReset();
-        mockEphemeralKeysCreate.mockReset();
-        prisma = buildPrismaMock();
-        const module: TestingModule = await buildModule(prisma);
-        service = module.get<PaymentsService>(PaymentsService);
+beforeEach(() => {
+    jest.clearAllMocks();
+    mockCheckoutSessionsCreate.mockResolvedValue({ id: 'cs_1', url: 'https://checkout.stripe.com/cs_1' });
+    mockEphemeralKeysCreate.mockResolvedValue({ secret: 'ek_1' });
+    mockPaymentIntentsCreate.mockResolvedValue({ id: 'pi_1', client_secret: 'secret_1' });
+});
 
-        prisma.listing.findUnique.mockResolvedValue({ id: 'listing-1', title: 'BMW M3', deletedAt: null });
-        mockEphemeralKeysCreate.mockResolvedValue({ secret: 'ek_mock' });
-        mockPaymentIntentsCreate.mockResolvedValue({ id: 'pi_mock', client_secret: 'pi_mock_secret' });
-    });
+describe('PaymentsService — CarMazium vehicle-fund boundary', () => {
+    it.each(['DEPOSIT', 'FULL_PAYMENT'] as const)(
+        'refuses new %s hosted checkout sessions',
+        async (type) => {
+            const prisma = prismaMock();
+            const service = await build(prisma);
+            await expect(service.createCheckoutSession('listing-1', 'winner-1', 1, type, 'gbp'))
+                .rejects.toThrow(BadRequestException);
+            expect(mockCheckoutSessionsCreate).not.toHaveBeenCalled();
+            expect(prisma.transaction.create).not.toHaveBeenCalled();
+        },
+    );
 
-    it('accepts type LISTING_FEE (previously rejected by DTO validation) and includes badgeTier in the PaymentIntent metadata', async () => {
-        await service.createPaymentSheet('listing-1', 'user-1', 25, 'LISTING_FEE', 'gbp', 'PREMIUM');
+    it.each(['DEPOSIT', 'FULL_PAYMENT'] as const)(
+        'refuses new %s native Payment Sheet intents',
+        async (type) => {
+            const prisma = prismaMock();
+            const service = await build(prisma);
+            await expect(service.createPaymentSheet('listing-1', 'winner-1', 1, type, 'gbp'))
+                .rejects.toThrow(BadRequestException);
+            expect(mockPaymentIntentsCreate).not.toHaveBeenCalled();
+            expect(prisma.transaction.create).not.toHaveBeenCalled();
+        },
+    );
+});
 
-        expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
-            expect.objectContaining({
-                amount: 2500,
-                metadata: expect.objectContaining({
-                    type: 'LISTING_FEE',
-                    badgeTier: 'PREMIUM',
-                }),
+describe('PaymentsService — £125 auction buyer fee', () => {
+    it('creates a hosted £125 checkout only for the actual winning dealer', async () => {
+        const prisma = prismaMock();
+        prisma.listing.findUnique.mockResolvedValue(LISTING);
+        prisma.auction.findFirst.mockResolvedValue({ id: 'auction-1', winnerId: 'winner-1', buyerFeePaid: false });
+        const service = await build(prisma);
+
+        const result = await service.createCheckoutSession('listing-1', 'winner-1', 1, 'COMMISSION', 'gbp');
+
+        expect(result.url).toContain('stripe.com');
+        expect(mockCheckoutSessionsCreate).toHaveBeenCalledWith(expect.objectContaining({
+            line_items: [expect.objectContaining({
+                price_data: expect.objectContaining({ unit_amount: 12500 }),
+            })],
+            metadata: expect.objectContaining({
+                listingId: 'listing-1',
+                auctionId: 'auction-1',
+                userId: 'winner-1',
+                type: 'COMMISSION',
             }),
-        );
+        }));
+        expect(prisma.transaction.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ amount: 125, type: 'COMMISSION', userId: 'winner-1' }),
+        });
     });
 
-    it('omits badgeTier from metadata for non-listing-fee payment types', async () => {
-        await service.createPaymentSheet('listing-1', 'user-1', 125, 'COMMISSION', 'gbp');
+    it('rejects an authenticated user who is not the auction winner', async () => {
+        const prisma = prismaMock();
+        prisma.listing.findUnique.mockResolvedValue(LISTING);
+        prisma.auction.findFirst.mockResolvedValue({ id: 'auction-1', winnerId: 'someone-else', buyerFeePaid: false });
+        const service = await build(prisma);
 
-        const callArg = mockPaymentIntentsCreate.mock.calls[0][0];
-        expect(callArg.metadata.badgeTier).toBeUndefined();
+        await expect(service.createCheckoutSession('listing-1', 'winner-1', 125, 'COMMISSION', 'gbp'))
+            .rejects.toThrow(ForbiddenException);
+        expect(mockCheckoutSessionsCreate).not.toHaveBeenCalled();
     });
 
-    it('throws BadRequestException for LISTING_FEE with no badgeTier', async () => {
-        await expect(
-            service.createPaymentSheet('listing-1', 'user-1', 25, 'LISTING_FEE', 'gbp', undefined),
-        ).rejects.toThrow('badgeTier is required');
-        expect(mockPaymentIntentsCreate).not.toHaveBeenCalled();
+    it('rejects a second fee checkout once buyerFeePaid is true', async () => {
+        const prisma = prismaMock();
+        prisma.listing.findUnique.mockResolvedValue(LISTING);
+        prisma.auction.findFirst.mockResolvedValue({ id: 'auction-1', winnerId: 'winner-1', buyerFeePaid: true });
+        const service = await build(prisma);
+
+        await expect(service.createCheckoutSession('listing-1', 'winner-1', 125, 'COMMISSION', 'gbp'))
+            .rejects.toThrow('already been paid');
     });
 });
 
-describe('PaymentsService — createPaymentSheet (F2: server-side amount, ignores client amount)', () => {
-    let service: PaymentsService;
-    let prisma: any;
+describe('PaymentsService — platform fees/services', () => {
+    it('keeps listing-fee Payment Sheet support', async () => {
+        const prisma = prismaMock();
+        prisma.listing.findUnique.mockResolvedValue(LISTING);
+        const service = await build(prisma);
 
-    beforeEach(async () => {
-        mockPaymentIntentsCreate.mockReset();
-        mockCustomersCreate.mockReset();
-        mockEphemeralKeysCreate.mockReset();
-        prisma = buildPrismaMock();
-        const module: TestingModule = await buildModule(prisma);
-        service = module.get<PaymentsService>(PaymentsService);
+        await service.createPaymentSheet('listing-1', 'winner-1', 1, 'LISTING_FEE', 'gbp', 'PREMIUM');
 
-        mockEphemeralKeysCreate.mockResolvedValue({ secret: 'ek_mock' });
-        mockPaymentIntentsCreate.mockResolvedValue({ id: 'pi_mock', client_secret: 'pi_mock_secret' });
+        expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(expect.objectContaining({
+            amount: 2500,
+            metadata: expect.objectContaining({ type: 'LISTING_FEE', badgeTier: 'PREMIUM' }),
+        }));
     });
 
-    it('charges the real listing price for FULL_PAYMENT regardless of a lower client-supplied amount', async () => {
-        prisma.listing.findUnique.mockResolvedValue({ id: 'listing-1', title: 'BMW M3', price: 30000, deletedAt: null });
+    it('keeps auction-fee Payment Sheet support and derives £125 server-side', async () => {
+        const prisma = prismaMock();
+        prisma.listing.findUnique.mockResolvedValue(LISTING);
+        prisma.auction.findFirst.mockResolvedValue({ id: 'auction-1', winnerId: 'winner-1', buyerFeePaid: false });
+        const service = await build(prisma);
 
-        await service.createPaymentSheet('listing-1', 'user-1', 1, 'FULL_PAYMENT', 'gbp');
-
-        expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(
-            expect.objectContaining({ amount: 3000000 }), // £30,000 in pence, NOT the client's £1
-        );
-        expect(prisma.transaction.create).toHaveBeenCalledWith(
-            expect.objectContaining({ data: expect.objectContaining({ amount: 30000 }) }),
-        );
-    });
-
-    it('charges the fixed £500 deposit for DEPOSIT regardless of client-supplied amount', async () => {
-        prisma.listing.findUnique.mockResolvedValue({ id: 'listing-1', title: 'BMW M3', price: 30000, deletedAt: null });
-
-        await service.createPaymentSheet('listing-1', 'user-1', 1, 'DEPOSIT', 'gbp');
-
-        expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(expect.objectContaining({ amount: 50000 }));
-    });
-
-    it('charges the fixed £125 auction buyer fee for COMMISSION regardless of client-supplied amount', async () => {
-        prisma.listing.findUnique.mockResolvedValue({ id: 'listing-1', title: 'BMW M3', price: 30000, deletedAt: null });
-
-        await service.createPaymentSheet('listing-1', 'user-1', 1, 'COMMISSION', 'gbp');
+        await service.createPaymentSheet('listing-1', 'winner-1', 1, 'COMMISSION', 'gbp');
 
         expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(expect.objectContaining({ amount: 12500 }));
     });
-
-    it('charges the real LISTING_FEES[badgeTier] amount regardless of a lower client-supplied amount', async () => {
-        prisma.listing.findUnique.mockResolvedValue({ id: 'listing-1', title: 'BMW M3', price: 30000, deletedAt: null });
-
-        await service.createPaymentSheet('listing-1', 'user-1', 1, 'LISTING_FEE', 'gbp', 'PREMIUM');
-
-        expect(mockPaymentIntentsCreate).toHaveBeenCalledWith(expect.objectContaining({ amount: 2500 })); // £25 PREMIUM fee, not the client's £1
-    });
 });
 
-describe('PaymentsService — handleWebhook payment_intent.succeeded (LISTING_FEE)', () => {
-    let service: PaymentsService;
-    let prisma: any;
+describe('PaymentsService — £100 refund / £25 retained', () => {
+    it('does nothing when called without an explicit failed-sale reason', async () => {
+        const prisma = prismaMock();
+        const service = await build(prisma);
 
-    beforeEach(async () => {
-        mockConstructEvent.mockReset();
-        prisma = buildPrismaMock();
-        const module: TestingModule = await buildModule(prisma);
-        service = module.get<PaymentsService>(PaymentsService);
+        await service.issueRefundForAuction('auction-1');
+
+        expect(prisma.auction.findUnique).not.toHaveBeenCalled();
+        expect(mockRefundsCreate).not.toHaveBeenCalled();
     });
 
-    it('moves the listing to PENDING_REVIEW (not ACTIVE) when a PREMIUM LISTING_FEE PaymentIntent succeeds — featuring is deferred to admin approval', async () => {
-        mockConstructEvent.mockReturnValue({
-            type: 'payment_intent.succeeded',
-            data: {
-                object: {
-                    id: 'pi_mock',
-                    metadata: { transactionId: 'txn-1', listingId: 'listing-1', type: 'LISTING_FEE', badgeTier: 'PREMIUM' },
-                },
-            },
+    it('refunds exactly £100 and records a negative REFUND row while leaving the £125 COMMISSION intact', async () => {
+        const prisma = prismaMock();
+        prisma.auction.findUnique.mockResolvedValue({
+            id: 'auction-1',
+            buyerFeePaid: true,
+            buyerFeeTransactionId: 'txn-fee',
+            sellerBonusReleased: false,
         });
-
-        await service.handleWebhook(Buffer.from('{}'), 'sig');
-
-        expect(prisma.transaction.update).toHaveBeenCalledWith({
-            where: { id: 'txn-1' },
-            data: { status: 'COMPLETED', stripePaymentId: 'pi_mock' },
+        prisma.transaction.findUnique.mockResolvedValue({
+            id: 'txn-fee',
+            listingId: 'listing-1',
+            userId: 'winner-1',
+            amount: 125,
+            type: 'COMMISSION',
+            status: 'COMPLETED',
+            stripePaymentId: 'cs_fee',
         });
-        expect(prisma.listing.update).toHaveBeenCalledWith({
-            where: { id: 'listing-1' },
+        prisma.transaction.findFirst.mockResolvedValue(null);
+        mockCheckoutSessionsRetrieve.mockResolvedValue({ payment_intent: 'pi_fee' });
+        mockRefundsCreate.mockResolvedValue({ id: 're_100' });
+        const service = await build(prisma);
+
+        await service.issueRefundForAuction('auction-1', 'FAILED_SALE');
+
+        expect(mockRefundsCreate).toHaveBeenCalledWith(
+            { payment_intent: 'pi_fee', amount: 10000 },
+            { idempotencyKey: 'auction-buyer-fee-refund-auction-1' },
+        );
+        expect(prisma.transaction.create).toHaveBeenCalledWith({
             data: expect.objectContaining({
-                status: 'PENDING_REVIEW',
-                badgeTier: 'PREMIUM',
+                listingId: 'listing-1',
+                userId: 'winner-1',
+                amount: -100,
+                type: 'REFUND',
+                status: 'COMPLETED',
+                stripePaymentId: 're_100',
             }),
         });
+        expect(prisma.transaction.update).not.toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: 'txn-fee' },
+            data: expect.objectContaining({ status: 'REFUNDED' }),
+        }));
     });
 
-    it('moves a BASIC tier LISTING_FEE payment to PENDING_REVIEW the same way', async () => {
-        mockConstructEvent.mockReturnValue({
-            type: 'payment_intent.succeeded',
-            data: {
-                object: {
-                    id: 'pi_mock',
-                    metadata: { transactionId: 'txn-1', listingId: 'listing-1', type: 'LISTING_FEE', badgeTier: 'BASIC' },
-                },
-            },
+    it('will not refund after the seller incentive has been released', async () => {
+        const prisma = prismaMock();
+        prisma.auction.findUnique.mockResolvedValue({
+            id: 'auction-1',
+            buyerFeePaid: true,
+            buyerFeeTransactionId: 'txn-fee',
+            sellerBonusReleased: true,
         });
+        const service = await build(prisma);
 
-        await service.handleWebhook(Buffer.from('{}'), 'sig');
-
-        expect(prisma.listing.update).toHaveBeenCalledWith({
-            where: { id: 'listing-1' },
-            data: expect.objectContaining({
-                status: 'PENDING_REVIEW',
-                badgeTier: 'BASIC',
-            }),
-        });
-    });
-});
-
-describe('PaymentsService — createCheckoutSession (F6: server-side amount, same fix as F2)', () => {
-    let service: PaymentsService;
-    let prisma: any;
-
-    beforeEach(async () => {
-        mockCheckoutSessionsCreate.mockReset();
-        prisma = buildPrismaMock();
-        const module: TestingModule = await buildModule(prisma);
-        service = module.get<PaymentsService>(PaymentsService);
-
-        mockCheckoutSessionsCreate.mockResolvedValue({ id: 'cs_mock', url: 'https://checkout.stripe.com/cs_mock' });
-    });
-
-    it('charges the real listing price for FULL_PAYMENT regardless of a lower client-supplied amount', async () => {
-        prisma.listing.findUnique.mockResolvedValue({ id: 'listing-1', title: 'BMW M3', price: 30000, make: 'BMW', model: 'M3', year: 2022, images: [], deletedAt: null });
-
-        await service.createCheckoutSession('listing-1', 'user-1', 1, 'FULL_PAYMENT', 'gbp');
-
-        expect(mockCheckoutSessionsCreate).toHaveBeenCalledWith(
-            expect.objectContaining({
-                line_items: [expect.objectContaining({ price_data: expect.objectContaining({ unit_amount: 3000000 }) })],
-            }),
-        );
-        expect(prisma.transaction.create).toHaveBeenCalledWith(
-            expect.objectContaining({ data: expect.objectContaining({ amount: 30000 }) }),
-        );
-    });
-
-    it('charges the fixed £500 deposit for DEPOSIT regardless of client-supplied amount', async () => {
-        prisma.listing.findUnique.mockResolvedValue({ id: 'listing-1', title: 'BMW M3', price: 30000, make: 'BMW', model: 'M3', year: 2022, images: [], deletedAt: null });
-
-        await service.createCheckoutSession('listing-1', 'user-1', 1, 'DEPOSIT', 'gbp');
-
-        expect(mockCheckoutSessionsCreate).toHaveBeenCalledWith(
-            expect.objectContaining({
-                line_items: [expect.objectContaining({ price_data: expect.objectContaining({ unit_amount: 50000 }) })],
-            }),
-        );
-    });
-
-    it('charges the fixed £125 auction buyer fee for COMMISSION regardless of client-supplied amount', async () => {
-        prisma.listing.findUnique.mockResolvedValue({ id: 'listing-1', title: 'BMW M3', price: 30000, make: 'BMW', model: 'M3', year: 2022, images: [], deletedAt: null });
-
-        await service.createCheckoutSession('listing-1', 'user-1', 1, 'COMMISSION', 'gbp');
-
-        expect(mockCheckoutSessionsCreate).toHaveBeenCalledWith(
-            expect.objectContaining({
-                line_items: [expect.objectContaining({ price_data: expect.objectContaining({ unit_amount: 12500 }) })],
-            }),
-        );
+        await expect(service.issueRefundForAuction('auction-1', 'FAILED_SALE'))
+            .rejects.toThrow('seller bonus');
+        expect(mockRefundsCreate).not.toHaveBeenCalled();
     });
 });
