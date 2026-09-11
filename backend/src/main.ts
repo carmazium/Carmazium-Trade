@@ -36,8 +36,9 @@ async function bootstrap() {
   }
 
   if (isProduction && !process.env.SESSION_SECRET) {
-    console.warn('SESSION_SECRET is not set in production — session cookies may be insecure');
+    throw new Error('SESSION_SECRET must be set in production; refusing to start with the development fallback.');
   }
+  const sessionSecret = process.env.SESSION_SECRET || 'dev-secret-change-in-production';
 
   app.use(
     session({
@@ -47,7 +48,7 @@ async function bootstrap() {
         createTableIfMissing: true,
       }),
       name: 'sid',
-      secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
+      secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
       cookie: {

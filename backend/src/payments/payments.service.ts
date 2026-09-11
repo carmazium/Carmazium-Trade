@@ -756,7 +756,7 @@ export class PaymentsService {
 
         const refund = await stripe.refunds.create(
             { payment_intent: paymentIntentId, amount: 10000 },
-            { idempotencyKey: `auction-buyer-fee-refund-${auctionId}` },
+            { idempotencyKey: `auction-buyer-fee-refund-${transaction.id}` },
         );
         await this.prisma.transaction.create({
             data: {

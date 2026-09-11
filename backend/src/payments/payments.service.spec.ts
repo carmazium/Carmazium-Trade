@@ -237,7 +237,7 @@ describe('PaymentsService — £100 refund / £25 retained', () => {
 
         expect(mockRefundsCreate).toHaveBeenCalledWith(
             { payment_intent: 'pi_fee', amount: 10000 },
-            { idempotencyKey: 'auction-buyer-fee-refund-auction-1' },
+            { idempotencyKey: 'auction-buyer-fee-refund-txn-fee' },
         );
         expect(prisma.transaction.create).toHaveBeenCalledWith({
             data: expect.objectContaining({
