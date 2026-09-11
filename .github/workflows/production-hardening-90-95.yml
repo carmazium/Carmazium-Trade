@@ -31,13 +31,29 @@ jobs:
             package-lock.json
             backend/package-lock.json
 
-      - name: Verify backend build and regressions
+      - name: Install backend dependencies
         working-directory: backend
-        run: |
-          npm ci
-          npx prisma validate
-          npm run build
-          npm test -- --runInBand payments/payments.service.spec.ts services/services.service.spec.ts auth/auth-security.spec.ts
+        run: npm ci
+
+      - name: Validate Prisma schema
+        working-directory: backend
+        run: npx prisma validate
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+      - name: Test payment rules
+        working-directory: backend
+        run: npm test -- --runInBand payments/payments.service.spec.ts
+
+      - name: Test service marketplace
+        working-directory: backend
+        run: npm test -- --runInBand services/services.service.spec.ts
+
+      - name: Test auth trust boundary
+        working-directory: backend
+        run: npm test -- --runInBand auth/auth-security.spec.ts
 
       - name: Verify frontend production build
         run: |
