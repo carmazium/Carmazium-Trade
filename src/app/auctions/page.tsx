@@ -10,33 +10,11 @@ import {
 } from "lucide-react"
 import { HowAuctionsWork } from "@/components/auctions/HowAuctionsWork"
 
-/**
- * Trade Exchange landing dashboard — the menu of what the room contains.
- *
- * /auctions used to BE the auction browser. It is now the section index, and
- * the browser lives at /auctions/browse. The URL was kept rather than moved to
- * /trade-exchange on purpose: renaming it would break existing links and SEO,
- * the /auctions/live/[id] and /auctions/won/[id] children, and the backend's
- * returnPath allowlist (/^\/(buy-cars|auctions)\//) that /auctions/browse still
- * satisfies.
- *
- * THIS WHOLE PAGE IS PUBLIC, deliberately. Hero, section menu and How It Works
- * show no vehicle, no price and no live bid — they are the dealer-recruitment
- * pitch, and gating them would hide the Trade Exchange from search and from the
- * exact audience it exists to attract.
- *
- * The gate sits one click further in. "Enter the auction room" goes to
- * /auctions/browse, which requires a verified dealer, and the auction endpoints
- * refuse everyone else server-side (VerifiedDealerGuard) — so the trade stock is
- * protected by the API, not by whether this menu rendered.
- */
-
 type Section = {
     icon: LucideIcon
     title: string
     description: string
     points: string[]
-    /** Present = live. Absent = the card renders as Coming soon and is inert. */
     href?: string
     cta: string
 }
@@ -57,6 +35,7 @@ const SECTIONS: Section[] = [
         description:
             "Move or recover a vehicle anywhere in the UK. Post the route and approved transport businesses send you a price.",
         points: ["Single and multi-car moves", "Recovery jobs", "Contact shared only with your pick"],
+        href: "/services/delivery",
         cta: "Post a delivery job",
     },
     {
@@ -138,8 +117,6 @@ function SectionCard({ section, index }: { section: Section; index: number }) {
             className="h-full"
         >
             {live ? (
-                // The whole card is the link — a dealer aiming for "Auction"
-                // should not have to hit a 40px button to get there.
                 <Link href={href!} className={`${shell} group cursor-pointer`}>
                     {body}
                     <span className="mt-auto inline-flex items-center justify-center gap-2 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-black uppercase tracking-widest text-white group-hover:bg-primary/90 transition-colors">
@@ -150,13 +127,6 @@ function SectionCard({ section, index }: { section: Section; index: number }) {
             ) : (
                 <div className={shell}>
                     {body}
-                    {/*
-                        A real disabled button, not a dimmed link. `disabled`
-                        takes it out of the tab order and has screen readers
-                        announce it as unavailable, so the card reads the same to
-                        a keyboard user as it looks — and there is no href for
-                        anyone to follow early.
-                    */}
                     <button
                         type="button"
                         disabled
@@ -174,8 +144,6 @@ function SectionCard({ section, index }: { section: Section; index: number }) {
 export default function TradeExchangePage() {
     return (
         <div className="min-h-screen" style={{ background: 'var(--bg-body)' }}>
-
-            {/* ── Hero (public — the dealer-recruitment pitch) ──────────────── */}
             <section className="relative overflow-hidden text-white" style={{ marginTop: '-80px', paddingTop: '80px' }}>
                 <Image
                     src="/assets/images/live-auction-hero.jpg"
@@ -219,7 +187,7 @@ export default function TradeExchangePage() {
                             transition={{ delay: 0.12 }}
                             className="text-slate-300 text-lg max-w-lg leading-relaxed"
                         >
-                            Live auctions today. Delivery, inspections, finance and warranty next —
+                            Live auctions and vehicle delivery are open today. Inspections, finance and warranty are next —
                             all through approved trade businesses, all without leaving CarMazium.
                         </motion.p>
                     </div>
@@ -228,27 +196,13 @@ export default function TradeExchangePage() {
                 <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
             </section>
 
-            {/* ── Section menu (public) ─────────────────────────────────────
-                Shown to everyone, signed in or not. The gate moved off this
-                menu and onto the click-through: "Enter the auction room" leads
-                to /auctions/browse, which is where RequireAuth decides whether
-                you get in.
-
-                Safe to make public because these cards are static copy — no
-                vehicle, no price, no bid, nothing fetched. The thing that had
-                to stay behind the wall is the stock itself, and that lives on
-                /auctions/browse, still gated on a verified dealer and still
-                refused server-side by VerifiedDealerGuard.
-
-                It is also the better funnel: a dealer who cannot see what the
-                room contains has no reason to sign up for it. */}
             <section className="container mx-auto px-4 md:px-6 py-16">
                 <div className="mb-10">
                     <h2 className="text-2xl md:text-3xl font-black font-heading tracking-tight mb-2">
                         Where do you want to go?
                     </h2>
                     <p className="text-[var(--text-muted)] text-sm">
-                        Auctions are open now. The other four service areas are on the way.
+                        Auctions and Delivery &amp; Recovery are open now. The other three service areas are on the way.
                     </p>
                 </div>
 
@@ -259,7 +213,6 @@ export default function TradeExchangePage() {
                 </div>
             </section>
 
-            {/* Public on purpose — see the note at the top of this file. */}
             <HowAuctionsWork />
         </div>
     )
